@@ -204,7 +204,7 @@ tr:hover td{background:#f0f5ff}
         <div class="field"><label>Brand</label><input id="ip-brand" placeholder="Generic name"/></div>
         <div class="field"><label>Expiration <span class="req">*</span></label><input id="ip-exp" type="date"/></div>
         <div class="field"><label>Qty received <span class="req">*</span></label><input id="ip-qty" type="number" min="1" value="10"/></div>
-        <div class="field"><label>Unit</label><select id="ip-unit"><option>pen</option><option>vial</option><option>box</option><option>tablet</option><option>patch</option><option>kit</option></select></div>
+        <div class="field"><label>Unit</label><select id="ip-unit"><option>bottle</option><option>pen</option><option>vial</option><option>box</option><option>tablet</option><option>patch</option><option>kit</option></select></div>
         <div class="field"><label>Rep / manufacturer</label><input id="ip-rep" placeholder="e.g. Novo Nordisk"/></div>
       </div>
       <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
@@ -219,7 +219,7 @@ tr:hover td{background:#f0f5ff}
     <input type="hidden" id="f-rep"/>
     <input type="hidden" id="f-exp"/>
     <input type="hidden" id="f-pt" value=""/>
-    <select id="f-unit" style="display:none"><option>pen</option><option>vial</option><option>box</option><option>tablet</option><option>patch</option><option>kit</option></select>
+    <select id="f-unit" style="display:none"><option>bottle</option><option>pen</option><option>vial</option><option>box</option><option>tablet</option><option>patch</option><option>kit</option></select>
     <select id="f-staff" style="display:none"><option value="">— select —</option></select>
   </div>
 
@@ -270,7 +270,7 @@ tr:hover td{background:#f0f5ff}
       <div class="field"><label>Lot number <span class="req">*</span></label><input id="si-lot" placeholder="Lot #"/></div>
       <div class="field"><label>Expiration <span class="req">*</span></label><input id="si-exp" type="date"/></div>
       <div class="field"><label>Qty received <span class="req">*</span></label><input id="si-qty" type="number" min="1" value="10"/></div>
-      <div class="field"><label>Unit</label><select id="si-unit"><option>pen</option><option>vial</option><option>box</option><option>tablet</option><option>patch</option><option>kit</option></select></div>
+      <div class="field"><label>Unit</label><select id="si-unit"><option>bottle</option><option>pen</option><option>vial</option><option>box</option><option>tablet</option><option>patch</option><option>kit</option></select></div>
       <div class="field"><label>Storage location <span class="req">*</span></label><input id="si-rep" placeholder="e.g. Fridge A, Shelf 2"/></div>
     </div>
     <div class="actions"><button class="btn btn-primary" onclick="addStockIn()">+ Record receipt</button></div>
