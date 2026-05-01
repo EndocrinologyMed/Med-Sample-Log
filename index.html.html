@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;">
+<title>Medication Sample Log — Endocrinology Clinic</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#1a5fa8;--blue-lt:#e8f0fa;--blue-dk:#1a4f8a;
+  --green:#166534;--green-bg:#dcfce7;--green-bd:#86efac;
+  --amber:#92400e;--amber-bg:#fef3c7;--amber-bd:#fcd34d;
+  --red:#991b1b;--red-bg:#fee2e2;--red-bd:#fca5a5;
+  --border:#e5e7eb;--bg:#f3f4f6;--surface:#fff;
+  --text:#111827;--muted:#6b7280;
+  --radius:8px;--radius-lg:12px;
+}
+body{font-family:-apple-system,'Segoe UI',sans-serif;font-size:14px;color:var(--text);background:var(--bg);min-height:100vh}
+header{background:var(--blue);color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:40}
+header h1{font-size:17px;font-weight:600}
+header p{font-size:12px;opacity:.75}
+nav{background:#fff;border-bottom:1px solid var(--border);display:flex;padding:0 16px;overflow-x:auto;position:sticky;top:52px;z-index:39}
+nav button{padding:11px 15px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s}
+nav button:hover{color:var(--text)}
+nav button.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:500}
+.nav-badge{display:inline-block;background:#ef4444;color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;margin-left:4px;font-weight:700;vertical-align:middle}
+.tab{display:none;padding:16px;max-width:1200px;margin:0 auto}
+.tab.active{display:block}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px}
+.stat{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px}
+.stat-label{font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+.stat-val{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+.stat-val.blue{color:var(--blue)} .stat-val.amber{color:#d97706} .stat-val.red{color:#dc2626}
+.card{background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:14px}
+.card-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px}
+.fg{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:10px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:12px;color:var(--muted);font-weight:600}
+.req{color:#dc2626}
+input,select,textarea{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;color:var(--text);background:#fff;transition:border-color .15s;font-family:inherit}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,95,168,.1)}
+.btn{padding:7px 14px;border-radius:var(--radius);border:1px solid var(--border);font-size:13px;cursor:pointer;font-weight:500;transition:all .15s;font-family:inherit}
+.btn:active{transform:scale(.98)}
+.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+.btn-primary:hover{background:var(--blue-dk)}
+.btn-ghost{background:#fff;color:var(--text)}
+.btn-ghost:hover{background:var(--bg)}
+.btn-danger{background:#fff;color:#dc2626;border-color:var(--red-bd)}
+.btn-danger:hover{background:var(--red-bg)}
+.btn-success{background:#fff;color:var(--green);border-color:var(--green-bd)}
+.btn-success:hover{background:var(--green-bg)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+.qpills{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.qpill{padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:var(--bg);font-size:12px;cursor:pointer;transition:all .15s}
+.qpill:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-lt)}
+.tbl-bar{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
+.tbl-bar input,.tbl-bar select{flex:1;min-width:120px;max-width:240px}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);font-weight:700;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;background:var(--bg)}
+td{padding:7px 10px;border-bottom:1px solid var(--border);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;vertical-align:middle}
+tr:hover td{background:#f0f5ff}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;white-space:nowrap}
+.ok{background:var(--green-bg);color:var(--green)}
+.warn{background:var(--amber-bg);color:var(--amber)}
+.danger{background:var(--red-bg);color:var(--red)}
+.recall-badge{background:#fef3c7;color:#92400e;border:1px solid #fbbf24}
+.limit-badge{background:#fce7f3;color:#9d174d;border:1px solid #f9a8d4}
+.pager{display:flex;align-items:center;gap:8px;justify-content:flex-end;margin-top:10px;font-size:12px;color:var(--muted)}
+.alert-item{display:flex;align-items:flex-start;gap:12px;padding:12px;border-radius:var(--radius);margin-bottom:8px;border:1px solid}
+.alert-item.warn{background:var(--amber-bg);border-color:var(--amber-bd)}
+.alert-item.danger{background:var(--red-bg);border-color:var(--red-bd)}
+.alert-icon{font-size:18px;flex-shrink:0;line-height:1;margin-top:1px}
+.alert-content{flex:1}
+.alert-title{font-weight:700;font-size:13px;margin-bottom:2px}
+.alert-sub{font-size:12px;color:var(--muted)}
+.inv-row{display:grid;grid-template-columns:2fr 60px 80px 80px 100px 100px;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px}
+.inv-hdr{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase}
+.bar-wrap{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:4px}
+.bar-fill{height:100%;border-radius:3px}
+.rbar-row{display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:6px}
+.rbar-lbl{width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;flex-shrink:0;color:var(--text)}
+.rbar-track{flex:1;height:22px;background:var(--bg);border-radius:4px;overflow:hidden;border:1px solid var(--border)}
+.rbar-fill{height:100%;background:var(--blue-lt);border-left:3px solid var(--blue);display:flex;align-items:center;padding-left:6px;font-size:11px;color:var(--blue);font-weight:700}
+.divider{height:1px;background:var(--border);margin:14px 0}
+.hidden{display:none!important}
+.autofilled{background:#f0f9ff!important;border-color:#93c5fd!important;color:var(--muted)!important}
+.lot-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.lot-chip{padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:var(--bg);font-size:12px;cursor:pointer;font-family:monospace;transition:all .15s}
+.lot-chip:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-lt)}
+.session-sel{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:var(--radius);color:#fff;font-size:13px;padding:5px 10px;cursor:pointer}
+.session-sel option{color:var(--text);background:#fff}
+.entry-row{display:grid;grid-template-columns:140px 130px 160px 70px 1fr auto;gap:8px;align-items:end}
+.autofill-strip{display:flex;flex-wrap:wrap;gap:6px 16px;padding:8px 12px;background:var(--bg);border-radius:var(--radius);margin-top:8px;font-size:12px;color:var(--muted)}
+.autofill-strip strong{color:var(--text);font-weight:600}
+.intake-panel{background:#fffbeb;border:1px solid var(--amber-bd);border-radius:var(--radius);padding:12px;margin-top:8px}
+.intake-panel .fg{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.lot-error{font-size:12px;color:#dc2626;margin-top:4px;font-weight:500}
+#toast{position:fixed;bottom:20px;right:20px;background:#1f2937;color:#fff;padding:10px 16px;border-radius:var(--radius);font-size:13px;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none}
+#toast.show{opacity:1}
+@media print{
+  header,nav,.btn,.qpills,.form-section,.tbl-bar,.pager,.actions,.no-print,#toast{display:none!important}
+  .tab{display:block!important;padding:0}
+  .card{border:none;box-shadow:none;margin-bottom:6px;padding:0}
+  body{font-size:11px}
+  th,td{padding:4px 6px}
+  .stats{grid-template-columns:repeat(4,1fr)}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div><h1>Medication Sample Log</h1><p id="hdr-clinic">Endocrinology Clinic — Sample Dispensing Record</p></div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <button onclick="toggleConfig()" class="session-sel" style="cursor:pointer;font-size:12px;padding:4px 10px;border-radius:var(--radius)" title="Show/hide configuration">&#9881; Config</button>
+    <div style="font-size:12px;opacity:.8;text-align:right">
+      <span id="hdr-date"></span><br>
+      <label style="opacity:.75">I am: </label>
+      <select id="session-staff" class="session-sel" onchange="onSessionStaffChange(this.value)">
+        <option value="">— select —</option>
+      </select>
+    </div>
+  </div>
+</header>
+
+<div id="config-panel" style="display:none;background:#1e3a5f;color:#e8f0fa;padding:14px 20px;font-size:12px;border-bottom:2px solid #2d5a8e">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <strong style="font-size:13px">&#9881; Clinic configuration — edit in the HTML file</strong>
+    <button onclick="toggleConfig()" style="background:rgba(255,255,255,.15);border:none;color:#fff;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:12px">Close</button>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;opacity:.9">
+    <div><div style="font-weight:700;margin-bottom:4px">Clinic name</div><div id="cfg-clinic" style="font-family:monospace"></div></div>
+    <div><div style="font-weight:700;margin-bottom:4px">Physicians</div><div id="cfg-physicians" style="font-family:monospace;line-height:1.8"></div></div>
+    <div><div style="font-weight:700;margin-bottom:4px">Staff initials</div><div id="cfg-staff" style="font-family:monospace"></div></div>
+    <div><div style="font-weight:700;margin-bottom:4px">Sample limit</div><div id="cfg-limit" style="font-family:monospace"></div></div>
+    <div><div style="font-weight:700;margin-bottom:4px">Expiry warning</div><div id="cfg-expiry" style="font-family:monospace"></div></div>
+    <div><div style="font-weight:700;margin-bottom:4px">Medications loaded</div><div id="cfg-meds" style="font-family:monospace"></div></div>
+  </div>
+  <div style="margin-top:10px;opacity:.7;font-size:11px">To make changes: open the HTML file in Notepad or VS Code → find the CONFIG section near the top of the &lt;script&gt; block → edit and save → refresh the browser.</div>
+</div>
+
+<nav>
+  <button class="active" onclick="showTab('log')">Log Entry</button>
+  <button onclick="showTab('inventory')">Inventory</button>
+  <button onclick="showTab('alerts')">Alerts &amp; Recalls <span class="nav-badge hidden" id="badge-alerts">0</span></button>
+  <button onclick="showTab('reports')">Reports</button>
+  <button onclick="showTab('audit')">Audit Log</button>
+</nav>
+
+<!-- LOG ENTRY -->
+<div id="tab-log" class="tab active">
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Today's entries</div><div class="stat-val blue" id="s-today">0</div></div>
+    <div class="stat"><div class="stat-label">Total entries</div><div class="stat-val" id="s-total">0</div></div>
+    <div class="stat"><div class="stat-label">Expiring ≤30d</div><div class="stat-val amber" id="s-exp">0</div></div>
+    <div class="stat"><div class="stat-label">Active recalls</div><div class="stat-val red" id="s-recalls">0</div></div>
+    <div class="stat"><div class="stat-label">Unique meds</div><div class="stat-val" id="s-meds">0</div></div>
+    <div class="stat"><div class="stat-label">Over 3-sample limit</div><div class="stat-val red" id="s-limit">0</div></div>
+  </div>
+
+  <div class="card form-section">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div class="card-title" style="margin-bottom:0" id="form-label">New entry</div>
+      <button class="btn btn-ghost btn-sm" onclick="cancelEdit()">Clear</button>
+    </div>
+
+    <div class="card-title" style="margin-bottom:6px">Active lots — click to fill</div>
+    <div class="lot-chips" id="lot-chips"><span style="font-size:12px;color:var(--muted)">No stock on record yet.</span></div>
+
+    <div class="entry-row">
+      <div class="field">
+        <label>Lot # <span class="req">*</span></label>
+        <input id="f-lot" placeholder="Type or pick above" oninput="lotAutofill(this.value)" autocomplete="off"/>
+        <div class="lot-error hidden" id="lot-error">Lot not in inventory</div>
+      </div>
+      <div class="field"><label>Patient MRN</label><input id="f-mrn" placeholder="MRN-123456"/></div>
+      <div class="field"><label>Physician <span class="req">*</span></label><select id="f-dr"><option value="">— select —</option></select></div>
+      <div class="field"><label>Qty</label><input id="f-qty" type="number" min="1" value="1"/></div>
+      <div class="field"><label>Notes</label><input id="f-notes" placeholder="Optional"/></div>
+      <div class="field"><label>&nbsp;</label><button class="btn btn-primary" id="form-submit-btn" onclick="submitEntry()" style="white-space:nowrap">+ Add entry</button></div>
+    </div>
+
+    <div class="autofill-strip" id="autofill-strip" style="display:none">
+      <span>Medication: <strong id="af-med">—</strong></span>
+      <span>Expiry: <strong id="af-exp">—</strong></span>
+      <span>Unit: <strong id="af-unit">—</strong></span>
+      <span>Rep: <strong id="af-rep">—</strong></span>
+    </div>
+
+    <div class="intake-panel hidden" id="intake-panel">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:16px">⚠</span>
+        <span style="font-size:13px;font-weight:600;color:var(--amber)">Lot not in inventory — record receipt to continue</span>
+      </div>
+      <div class="fg intake-panel-fields">
+        <div class="field"><label>Medication <span class="req">*</span></label><input id="ip-med" list="ml1" placeholder="Medication name"/></div>
+        <div class="field"><label>Brand</label><input id="ip-brand" placeholder="Generic name"/></div>
+        <div class="field"><label>Expiration <span class="req">*</span></label><input id="ip-exp" type="date"/></div>
+        <div class="field"><label>Qty received <span class="req">*</span></label><input id="ip-qty" type="number" min="1" value="10"/></div>
+        <div class="field"><label>Unit</label><select id="ip-unit"><option>pen</option><option>vial</option><option>box</option><option>tablet</option><option>patch</option><option>kit</option></select></div>
+        <div class="field"><label>Rep / manufacturer</label><input id="ip-rep" placeholder="e.g. Novo Nordisk"/></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
+        <button class="btn btn-ghost btn-sm" onclick="dismissIntake()">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="saveIntakeAndContinue()">Save to inventory &amp; continue</button>
+      </div>
+    </div>
+
+    <datalist id="ml1"></datalist>
+    <input type="hidden" id="f-med"/>
+    <input type="hidden" id="f-brand"/>
+    <input type="hidden" id="f-rep"/>
+    <input type="hidden" id="f-exp"/>
+    <input type="hidden" id="f-pt" value=""/>
+    <select id="f-unit" style="display:none"><option>pen</option><option>vial</option><option>box</option><option>tablet</option><option>patch</option><option>kit</option></select>
+    <select id="f-staff" style="display:none"><option value="">— select —</option></select>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span class="card-title" style="margin-bottom:0">Dispensing log</span>
+      <div style="display:flex;gap:6px" class="no-print">
+        <button class="btn btn-ghost btn-sm" onclick="window.print()">Print</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportCSV()">Export CSV</button>
+      </div>
+    </div>
+    <div class="tbl-bar no-print">
+      <input id="search" placeholder="Search med, lot, MRN, physician…" oninput="renderTable()"/>
+      <select id="ff-dr" onchange="renderTable()"><option value="">All physicians</option></select>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th style="width:70px">ID</th>
+          <th style="width:80px">Date</th>
+          <th style="width:55px">Time</th>
+          <th style="width:160px">Medication</th>
+          <th style="width:90px">Lot #</th>
+          <th style="width:90px">Expiry</th>
+          <th style="width:60px">Qty</th>
+          <th style="width:110px">Physician</th>
+          <th style="width:110px">MRN</th>
+          <th style="width:55px">Staff</th>
+          <th style="width:90px" class="no-print">Actions</th>
+        </tr></thead>
+        <tbody id="log-body"></tbody>
+      </table>
+    </div>
+    <div class="pager no-print">
+      <span id="pager-info" style="margin-right:8px"></span>
+      <button class="btn btn-ghost btn-sm" id="btn-prev" onclick="changePage(-1)">&#8592; Prev</button>
+      <button class="btn btn-ghost btn-sm" id="btn-next" onclick="changePage(1)">Next &#8594;</button>
+    </div>
+  </div>
+</div>
+
+<!-- INVENTORY -->
+<div id="tab-inventory" class="tab">
+  <div class="card">
+    <div class="card-title">Record received samples</div>
+    <div class="fg">
+      <div class="field"><label>Medication <span class="req">*</span></label><input id="si-med" list="ml2" placeholder="Medication name"/><datalist id="ml2"></datalist></div>
+      <div class="field"><label>Lot number <span class="req">*</span></label><input id="si-lot" placeholder="Lot #"/></div>
+      <div class="field"><label>Expiration <span class="req">*</span></label><input id="si-exp" type="date"/></div>
+      <div class="field"><label>Qty received <span class="req">*</span></label><input id="si-qty" type="number" min="1" value="10"/></div>
+      <div class="field"><label>Unit</label><select id="si-unit"><option>pen</option><option>vial</option><option>box</option><option>tablet</option><option>patch</option><option>kit</option></select></div>
+      <div class="field"><label>Rep / manufacturer</label><input id="si-rep" placeholder="e.g. Novo Nordisk"/></div>
+    </div>
+    <div class="actions"><button class="btn btn-primary" onclick="addStockIn()">+ Record receipt</button></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span class="card-title" style="margin-bottom:0">Live inventory — active units across all lots</span>
+      <button class="btn btn-ghost btn-sm no-print" onclick="renderInventory()">&#8635; Refresh</button>
+    </div>
+    <div class="tbl-bar" style="margin-bottom:12px">
+      <input id="inv-search" placeholder="Search medication or lot number…" oninput="renderInventory()" style="flex:2;min-width:180px"/>
+      <select id="inv-status" onchange="renderInventory()" style="flex:1;min-width:130px;max-width:180px">
+        <option value="">All statuses</option>
+        <option value="ok">In stock</option>
+        <option value="warn">Low stock</option>
+        <option value="danger">Out of stock</option>
+      </select>
+      <select id="inv-rep" onchange="renderInventory()" style="flex:1;min-width:130px;max-width:180px">
+        <option value="">All manufacturers</option>
+      </select>
+    </div>
+    <div id="inv-container"><p style="color:var(--muted);font-size:13px;text-align:center;padding:24px">No stock records yet.</p></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Reorder thresholds</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">When remaining units reach or fall below this level, a reorder alert fires on the Alerts tab.</p>
+    <div id="thresh-list"></div>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+      <input id="thresh-med" list="ml3" placeholder="Medication name" style="flex:2;min-width:160px"/><datalist id="ml3"></datalist>
+      <input id="thresh-val" type="number" min="0" value="5" style="width:80px"/>
+      <button class="btn btn-primary btn-sm" onclick="setThreshold()">Set threshold</button>
+    </div>
+  </div>
+</div>
+
+<!-- ALERTS -->
+<div id="tab-alerts" class="tab">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span class="card-title" style="margin-bottom:0">Active alerts</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span id="fda-status" style="font-size:11px;color:var(--muted)">FDA: not checked yet</span>
+        <button class="btn btn-ghost btn-sm no-print" onclick="checkFDA(true)">Check FDA now</button>
+      </div>
+    </div>
+    <div id="alerts-list"><p style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No active alerts — all clear.</p></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Flag a recalled lot</div>
+    <div class="fg" style="grid-template-columns:1fr 1fr 2fr">
+      <div class="field"><label>Lot number <span class="req">*</span></label><input id="rc-lot" placeholder="Recalled lot #"/></div>
+      <div class="field"><label>Medication</label><input id="rc-med" list="ml4" placeholder="Medication name"/><datalist id="ml4"></datalist></div>
+      <div class="field"><label>Reason / FDA notice</label><input id="rc-reason" placeholder="e.g. Contamination — FDA recall #RC-20261"/></div>
+    </div>
+    <div class="actions"><button class="btn btn-danger" onclick="addRecall()">Flag recall</button></div>
+    <div class="divider"></div>
+    <div class="card-title">Recall history</div>
+    <div id="recalls-list"><p style="font-size:12px;color:var(--muted)">No recalls logged.</p></div>
+  </div>
+</div>
+
+<!-- REPORTS -->
+<div id="tab-reports" class="tab">
+  <div class="card no-print">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div class="field" style="flex:0 0 auto">
+        <label>Reporting period</label>
+        <select id="rep-period" onchange="renderReports()" style="width:180px">
+          <option value="month">This month</option>
+          <option value="quarter">This quarter</option>
+          <option value="all">All time</option>
+        </select>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="window.print()" style="margin-top:18px">Print report</button>
+    </div>
+  </div>
+  <div class="stats" id="rep-stats"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div class="card"><div class="card-title">By medication (top 10)</div><div id="rep-med"></div></div>
+    <div class="card"><div class="card-title">By physician</div><div id="rep-dr"></div></div>
+    <div class="card"><div class="card-title">By manufacturer / rep</div><div id="rep-rep"></div></div>
+    <div class="card"><div class="card-title">By staff member</div><div id="rep-staff"></div></div>
+  </div>
+</div>
+
+<!-- AUDIT -->
+<div id="tab-audit" class="tab">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span class="card-title" style="margin-bottom:0">Complete edit &amp; deletion history</span>
+      <button class="btn btn-ghost btn-sm no-print" onclick="window.print()">Print audit trail</button>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th style="width:145px">Timestamp</th>
+          <th style="width:60px">Action</th>
+          <th style="width:80px">Entry ID</th>
+          <th style="width:110px">Field</th>
+          <th>Before</th><th>After</th>
+          <th style="width:50px">By</th>
+        </tr></thead>
+        <tbody id="audit-body"></tbody>
+      </table>
+    </div>
+    <p style="font-size:11px;color:var(--muted);margin-top:8px">All changes are immutable. Deletions are preserved in the audit record.</p>
+  </div>
+</div>
+
+<div id="pin-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:150;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:var(--radius-lg);padding:24px;width:280px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+    <div style="font-size:22px;margin-bottom:8px">&#128274;</div>
+    <div style="font-weight:700;font-size:15px;margin-bottom:4px">Admin access</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Enter the PIN to continue</p>
+    <input id="pin-input" type="password" inputmode="numeric" maxlength="8" placeholder="PIN" style="text-align:center;font-size:20px;letter-spacing:6px;width:100%;margin-bottom:8px" onkeydown="if(event.key==='Enter')submitPin()"/>
+    <div id="pin-error" style="font-size:12px;color:#dc2626;height:16px;margin-bottom:8px"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closePinModal()">Cancel</button>
+      <button class="btn btn-primary" style="flex:1" onclick="submitPin()">Unlock</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   CLINIC CONFIGURATION — edit this section to customize the app
+   Toggle visible with the "Config" button in the header
+═══════════════════════════════════════════════════════════════ */
+const CONFIG = {
+
+  // ── Admin PIN — protects Config, Audit Log, and Delete ───────
+  // Change this to any number you like. Staff enter it once per session.
+  adminPin: '1234',
+
+  // ── Physicians (add or remove lines freely) ──────────────────
+  physicians: [
+    'Dr. A. Patel',
+    'Dr. M. Chen',
+    'Dr. S. Rivera',
+    'Dr. J. Williams',
+    'Dr. L. Kim',
+  ],
+
+  // ── Staff initials (shown in dispensed-by dropdown) ──────────
+  staff: ['KA','BT','MP','RS','JL','WH'],
+
+  // ── Sample limit: max samples per patient per window ─────────
+  sampleLimitCount: 3,       // alert triggers above this number
+  sampleLimitDays:  180,     // rolling window in days (180 = 6 months)
+
+  // ── Expiry warning window ─────────────────────────────────────
+  expiryWarnDays: 30,        // show amber badge when ≤ this many days left
+
+  // ── Medications (name shown in lot chips + autofill) ─────────
+  // Format: { name, brand, rep }
+  medications: [
+    {name:'Ozempic 0.5mg',       brand:'semaglutide',        rep:'Novo Nordisk'},
+    {name:'Ozempic 1mg',         brand:'semaglutide',        rep:'Novo Nordisk'},
+    {name:'Rybelsus 7mg',        brand:'semaglutide',        rep:'Novo Nordisk'},
+    {name:'Trulicity 0.75mg',    brand:'dulaglutide',        rep:'Eli Lilly'},
+    {name:'Trulicity 1.5mg',     brand:'dulaglutide',        rep:'Eli Lilly'},
+    {name:'Mounjaro 5mg',        brand:'tirzepatide',        rep:'Eli Lilly'},
+    {name:'Mounjaro 10mg',       brand:'tirzepatide',        rep:'Eli Lilly'},
+    {name:'Jardiance 10mg',      brand:'empagliflozin',      rep:'Boehringer Ingelheim'},
+    {name:'Farxiga 10mg',        brand:'dapagliflozin',      rep:'AstraZeneca'},
+    {name:'Victoza 1.2mg',       brand:'liraglutide',        rep:'Novo Nordisk'},
+    {name:'Wegovy 0.25mg',       brand:'semaglutide',        rep:'Novo Nordisk'},
+    {name:'Wegovy 1mg',          brand:'semaglutide',        rep:'Novo Nordisk'},
+    {name:'Tresiba 100U/mL',     brand:'insulin degludec',   rep:'Novo Nordisk'},
+    {name:'Lantus SoloStar',     brand:'insulin glargine',   rep:'Sanofi'},
+    {name:'Toujeo 300U/mL',      brand:'insulin glargine',   rep:'Sanofi'},
+    {name:'Basaglar 100U/mL',    brand:'insulin glargine',   rep:'Eli Lilly'},
+    {name:'Synthroid 50mcg',     brand:'levothyroxine',      rep:'AbbVie'},
+    {name:'Synthroid 100mcg',    brand:'levothyroxine',      rep:'AbbVie'},
+    {name:'Armour Thyroid 30mg', brand:'desiccated thyroid', rep:'Allergan'},
+    {name:'Prolia 60mg',         brand:'denosumab',          rep:'Amgen'},
+    {name:'Fosamax 70mg',        brand:'alendronate',        rep:'Merck'},
+    {name:'Evenity 105mg',       brand:'romosozumab',        rep:'Amgen'},
+  ],
+};
+/* ═══════════════════════════════════════════════════════════════
+   END OF CONFIGURATION — do not edit below this line
+═══════════════════════════════════════════════════════════════ */
+
+const MEDS       = CONFIG.medications;
+const PHYSICIANS = CONFIG.physicians;
+const STAFF_LIST = CONFIG.staff;
+
+let DB={entries:[],stockIn:[],recalls:[],auditLog:[],settings:{thresholds:{}}};
+let nextE=1,nextS=1,nextR=1;
+let page=1;const PER=15;
+let editingId=null;
+
+function save(){localStorage.setItem('endo_db2',JSON.stringify(DB));localStorage.setItem('endo_ids2',JSON.stringify({e:nextE,s:nextS,r:nextR}));}
+function load(){try{const d=localStorage.getItem('endo_db2');const ids=localStorage.getItem('endo_ids2');if(d)DB=JSON.parse(d);if(ids){const i=JSON.parse(ids);nextE=i.e;nextS=i.s;nextR=i.r;}}catch(e){}}
+
+const pad=n=>String(n).padStart(2,'0');
+const today=()=>{const d=new Date();return`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;};
+const nowT=()=>{const d=new Date();return`${pad(d.getHours())}:${pad(d.getMinutes())}`;};
+const fmtD=s=>{if(!s)return'';const[y,m,d]=s.split('-');return`${m}/${d}/${y.slice(2)}`;};
+const fmtDT=iso=>{if(!iso)return'';return new Date(iso).toLocaleString();};
+const daysTo=exp=>{if(!exp)return 999;return Math.round((new Date(exp)-new Date())/86400000);};
+
+function expBadge(exp){
+  if(!exp)return'';const d=daysTo(exp);
+  if(d<0)return`<span class="badge danger">Expired</span>`;
+  if(d===0)return`<span class="badge danger">Today</span>`;
+  if(d<=CONFIG.expiryWarnDays)return`<span class="badge warn">${d}d left</span>`;
+  return`<span class="badge ok">${fmtD(exp)}</span>`;
+}
+const isRecalled=lot=>DB.recalls.some(r=>r.active&&r.lot.trim().toLowerCase()===lot.trim().toLowerCase());
+function toast(msg,dur=2500){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur);}
+
+function showTab(name){
+  if(name==='audit'){requirePin(()=>_showTab('audit'));return;}
+  _showTab(name);
+}
+
+function _showTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.querySelectorAll('nav button')[['log','inventory','alerts','reports','audit'].indexOf(name)].classList.add('active');
+  if(name==='inventory')renderInventory();
+  if(name==='alerts')renderAlerts();
+  if(name==='reports')renderReports();
+  if(name==='audit')renderAudit();
+}
+
+function fillQuick(m){document.getElementById('f-med').value=m.name;document.getElementById('f-brand').value=m.brand;document.getElementById('f-rep').value=m.rep;}
+
+function clearForm(){
+  ['f-med','f-brand','f-lot','f-rep','f-notes','f-pt','f-mrn','f-exp'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-qty').value=1;
+  document.getElementById('f-unit').value='pen';
+  document.getElementById('f-dr').value='';
+  document.getElementById('autofill-strip').style.display='none';
+  document.getElementById('intake-panel').classList.add('hidden');
+  document.getElementById('lot-error').classList.add('hidden');
+  lotKnown=false;
+  const ss=sessionStorage.getItem('sessionStaff')||'';
+  document.getElementById('f-staff').value=ss;
+  editingId=null;
+  document.getElementById('form-label').textContent='New entry';
+  document.getElementById('form-submit-btn').textContent='+ Add entry';
+}
+function cancelEdit(){clearForm();}
+
+function onSessionStaffChange(val){
+  sessionStorage.setItem('sessionStaff',val);
+  document.getElementById('f-staff').value=val;
+}
+
+let lotKnown=false;
+
+function lotAutofill(val){
+  const v=val.trim().toLowerCase();
+  const errEl=document.getElementById('lot-error');
+  const strip=document.getElementById('autofill-strip');
+  const panel=document.getElementById('intake-panel');
+  if(!v){
+    lotKnown=false;strip.style.display='none';
+    panel.classList.add('hidden');errEl.classList.add('hidden');return;
+  }
+  const src=DB.stockIn.find(s=>s.lot.trim().toLowerCase()===v)||DB.entries.find(e=>e.lot.trim().toLowerCase()===v);
+  if(!src){
+    lotKnown=false;
+    strip.style.display='none';
+    errEl.classList.remove('hidden');
+    panel.classList.remove('hidden');
+    document.getElementById('ip-med').value='';
+    document.getElementById('ip-brand').value='';
+    document.getElementById('ip-exp').value='';
+    document.getElementById('ip-qty').value=10;
+    document.getElementById('ip-rep').value='';
+    return;
+  }
+  lotKnown=true;
+  errEl.classList.add('hidden');
+  panel.classList.add('hidden');
+  document.getElementById('f-med').value=src.med||src.name||'';
+  document.getElementById('f-brand').value=src.brand||'';
+  document.getElementById('f-rep').value=src.rep||'';
+  document.getElementById('f-exp').value=src.exp||'';
+  if(src.unit)document.getElementById('f-unit').value=src.unit;
+  document.getElementById('af-med').textContent=src.med||src.name||'—';
+  document.getElementById('af-exp').textContent=src.exp?fmtD(src.exp):'—';
+  document.getElementById('af-unit').textContent=src.unit||'—';
+  document.getElementById('af-rep').textContent=src.rep||'—';
+  strip.style.display='flex';
+  document.getElementById('f-mrn').focus();
+}
+
+function dismissIntake(){
+  document.getElementById('intake-panel').classList.add('hidden');
+  document.getElementById('lot-error').classList.add('hidden');
+  document.getElementById('f-lot').value='';
+  lotKnown=false;
+}
+
+function saveIntakeAndContinue(){
+  const lot=document.getElementById('f-lot').value.trim();
+  const med=document.getElementById('ip-med').value.trim();
+  const exp=document.getElementById('ip-exp').value;
+  const qty=parseInt(document.getElementById('ip-qty').value)||0;
+  if(!med){alert('Medication name is required.');return;}
+  if(!exp){alert('Expiration date is required.');return;}
+  if(qty<1){alert('Qty received must be at least 1.');return;}
+  DB.stockIn.push({
+    id:`SI-${String(nextS++).padStart(4,'0')}`,
+    date:today(),med,lot,
+    brand:document.getElementById('ip-brand').value.trim(),
+    exp,qtyReceived:qty,
+    unit:document.getElementById('ip-unit').value,
+    rep:document.getElementById('ip-rep').value.trim()
+  });
+  save();
+  document.getElementById('intake-panel').classList.add('hidden');
+  document.getElementById('lot-error').classList.add('hidden');
+  lotAutofill(lot);
+  renderRecentLots();
+  renderInventory();
+  toast(`Stock recorded: ${qty}× ${med} (Lot ${lot})`);
+}
+
+function renderRecentLots(){
+  const stockLots=[...new Map(DB.stockIn.map(s=>[s.lot,s])).values()];
+  const c=document.getElementById('lot-chips');
+  if(!stockLots.length){c.innerHTML='<span style="font-size:12px;color:var(--muted)">No stock on record — go to Inventory tab to add received samples.</span>';return;}
+  c.innerHTML=stockLots.slice(0,16).map(s=>`<button type="button" class="lot-chip" onclick="pickLot('${s.lot.replace(/'/g,"\\'")}')"><span style="opacity:.55;font-size:10px;margin-right:5px">${s.lot}</span>${s.med}</button>`).join('');
+}
+
+function pickLot(lot){
+  document.getElementById('f-lot').value=lot;
+  lotAutofill(lot);
+}
+
+function samplesInWindow(mrn,excludeId){
+  if(!mrn)return 0;
+  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-CONFIG.sampleLimitDays);
+  return DB.entries.filter(e=>e.patientMrn&&e.patientMrn.trim().toLowerCase()===mrn.trim().toLowerCase()&&e.id!==excludeId&&new Date(e.date)>=cutoff).length;
+}
+function overLimitPatients(){
+  const mrns={};
+  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-CONFIG.sampleLimitDays);
+  DB.entries.forEach(e=>{
+    if(!e.patientMrn)return;
+    const k=e.patientMrn.trim().toLowerCase();
+    if(!mrns[k])mrns[k]={mrn:e.patientMrn,count:0};
+    if(new Date(e.date)>=cutoff)mrns[k].count++;
+  });
+  return Object.values(mrns).filter(p=>p.count>CONFIG.sampleLimitCount);
+}
+
+function submitEntry(){
+  const get=id=>document.getElementById(id).value.trim();
+  const data={med:get('f-med'),brand:get('f-brand'),lot:get('f-lot'),exp:document.getElementById('f-exp').value,qty:parseInt(document.getElementById('f-qty').value)||1,unit:document.getElementById('f-unit').value,dr:document.getElementById('f-dr').value,rep:get('f-rep'),staff:document.getElementById('f-staff').value,patientMrn:get('f-mrn'),notes:get('f-notes')};
+  if(!data.med){alert('Medication name is required.');return;}
+  if(!data.lot){alert('Lot number is required.');return;}
+  if(!editingId&&!lotKnown){alert('Lot number not found in inventory. Please record this stock receipt first using the form that appeared below the lot field.');return;}
+  if(!data.exp){alert('Expiration date is required.');return;}
+  if(!data.dr){alert('Prescribing physician is required.');return;}
+  if(!data.staff){alert('Dispensed-by staff is required.');return;}
+  if(data.patientMrn&&!editingId){
+    const prev=samplesInWindow(data.patientMrn,null);
+    if(prev>=CONFIG.sampleLimitCount){
+      const proceed=confirm(`⚠ Sample limit notice\n\nMRN ${data.patientMrn} has already received ${prev} sample${prev===1?'':'s'} in the past ${CONFIG.sampleLimitDays} days (limit: ${CONFIG.sampleLimitCount}).\n\nDo you want to save this entry anyway?`);
+      if(!proceed)return;
+    }
+  }
+  if(editingId){
+    const idx=DB.entries.findIndex(e=>e.id===editingId);if(idx<0)return;
+    const before=DB.entries[idx];const changes=[];
+    Object.keys(data).forEach(k=>{if(String(before[k]||'')!==String(data[k]||''))changes.push({field:k,before:before[k],after:data[k]});});
+    DB.entries[idx]={...before,...data,editHistory:[...(before.editHistory||[]),{ts:new Date().toISOString(),by:data.staff,changes}]};
+    changes.forEach(c=>DB.auditLog.unshift({ts:new Date().toISOString(),action:'edit',id:editingId,field:c.field,before:String(c.before||''),after:String(c.after||''),by:data.staff}));
+    toast(`Entry ${editingId} updated`);
+  } else {
+    const id=`MS-${String(nextE++).padStart(4,'0')}`;
+    DB.entries.unshift({id,date:today(),time:nowT(),...data,editHistory:[]});
+    DB.auditLog.unshift({ts:new Date().toISOString(),action:'add',id,field:'—',before:'—',after:'new entry',by:data.staff});
+    if(isRecalled(data.lot)){setTimeout(()=>alert(`⚠ Warning: Lot ${data.lot} is flagged as RECALLED. Please review the Alerts tab.`),300);}
+    toast(`Entry ${id} added`);
+  }
+  save();clearForm();page=1;renderTable();updateStats();updateBadge();renderRecentLots();
+}
+
+function editEntry(id){
+  const e=DB.entries.find(x=>x.id===id);if(!e)return;
+  editingId=id;
+  document.getElementById('f-med').value=e.med||'';document.getElementById('f-brand').value=e.brand||'';document.getElementById('f-lot').value=e.lot||'';document.getElementById('f-exp').value=e.exp||'';document.getElementById('f-qty').value=e.qty||1;document.getElementById('f-unit').value=e.unit||'pen';document.getElementById('f-dr').value=e.dr||'';document.getElementById('f-rep').value=e.rep||'';document.getElementById('f-staff').value=e.staff||'';document.getElementById('f-mrn').value=e.patientMrn||'';document.getElementById('f-notes').value=e.notes||'';
+  document.getElementById('form-label').textContent=`Editing ${id}`;document.getElementById('form-submit-btn').textContent='Save changes';
+  lotKnown=true;
+  document.querySelector('.form-section').scrollIntoView({behavior:'smooth'});
+}
+
+function deleteEntry(id){
+  requirePin(()=>_deleteEntry(id));
+}
+function _deleteEntry(id){
+  if(!confirm(`Delete entry ${id}? This will be permanently logged in the audit trail.`))return;
+  const e=DB.entries.find(x=>x.id===id);if(!e)return;
+  const by=prompt('Enter your initials to confirm deletion:')||'?';
+  DB.entries=DB.entries.filter(x=>x.id!==id);
+  DB.auditLog.unshift({ts:new Date().toISOString(),action:'delete',id,field:'—',before:JSON.stringify({med:e.med,lot:e.lot,date:e.date}),after:'DELETED',by});
+  save();renderTable();updateStats();toast(`Entry ${id} deleted — audit record preserved`);
+}
+
+function getFiltered(){
+  const q=document.getElementById('search').value.toLowerCase();const fd=document.getElementById('ff-dr').value;
+  return DB.entries.filter(e=>{const m=!q||(e.med+e.lot+e.dr+e.rep+e.brand+e.staff+(e.patientMrn||'')).toLowerCase().includes(q);return m&&(!fd||e.dr===fd);});
+}
+
+function renderTable(){
+  const f=getFiltered();const total=f.length;const start=(page-1)*PER;const slice=f.slice(start,start+PER);
+  const tbody=document.getElementById('log-body');
+  const cutoff6m=new Date();cutoff6m.setDate(cutoff6m.getDate()-CONFIG.sampleLimitDays);
+  if(!slice.length){tbody.innerHTML=`<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--muted)">No entries found.</td></tr>`;}
+  else{tbody.innerHTML=slice.map(e=>{
+    const rc=isRecalled(e.lot);
+    const ptCount=e.patientMrn?DB.entries.filter(x=>x.patientMrn&&x.patientMrn.trim().toLowerCase()===e.patientMrn.trim().toLowerCase()&&new Date(x.date)>=cutoff6m).length:0;
+    const overLimit=ptCount>3;
+    return`<tr style="${rc?'background:#fef9c3':overLimit?'background:#fdf2f8':''}">
+    <td style="font-family:monospace;font-size:10px;color:var(--muted)">${e.id}</td>
+    <td>${fmtD(e.date)}</td><td style="color:var(--muted)">${e.time}</td>
+    <td title="${e.med}${e.brand?' ('+e.brand+')':''}" style="font-weight:600">${e.med}${rc?` <span class="badge recall-badge">RECALL</span>`:''}</td>
+    <td style="font-family:monospace;font-size:11px">${e.lot}</td>
+    <td>${expBadge(e.exp)}</td>
+    <td style="text-align:center">${e.qty} ${e.unit}</td>
+    <td title="${e.dr}">${e.dr.replace('Dr. ','Dr.')}</td>
+    <td style="font-family:monospace;font-size:11px">${e.patientMrn||'—'}${overLimit?`<br><span class="badge limit-badge">Over limit (${ptCount})</span>`:''}</td>
+    <td style="font-family:monospace;text-align:center">${e.staff}</td>
+    <td class="no-print"><button class="btn btn-ghost btn-sm" onclick="editEntry('${e.id}')" style="margin-right:3px">Edit</button><button class="btn btn-danger btn-sm" onclick="deleteEntry('${e.id}')">Del</button></td>
+  </tr>`;}).join('');}
+  document.getElementById('pager-info').textContent=total?`${start+1}–${Math.min(start+PER,total)} of ${total}`:'0 results';
+  document.getElementById('btn-prev').disabled=page<=1;document.getElementById('btn-next').disabled=start+PER>=total;
+}
+function changePage(dir){page+=dir;renderTable();}
+
+function updateStats(){
+  const t=today();
+  document.getElementById('s-today').textContent=DB.entries.filter(e=>e.date===t).length;
+  document.getElementById('s-total').textContent=DB.entries.length;
+  document.getElementById('s-exp').textContent=DB.entries.filter(e=>{const d=daysTo(e.exp);return d>=0&&d<=CONFIG.expiryWarnDays;}).length;
+  document.getElementById('s-recalls').textContent=DB.recalls.filter(r=>r.active).length;
+  document.getElementById('s-meds').textContent=new Set(DB.entries.map(e=>e.med)).size;
+  document.getElementById('s-limit').textContent=overLimitPatients().length;
+}
+function updateBadge(){
+  const expC=DB.entries.filter(e=>{const d=daysTo(e.exp);return d>=0&&d<=CONFIG.expiryWarnDays;}).length;
+  const rcC=DB.recalls.filter(r=>r.active).length;
+  const fdaC=(DB.fdaRecalls||[]).filter(r=>!r.dismissed).length;
+  const limC=overLimitPatients().length;
+  const n=expC+rcC+fdaC+limC;
+  const b=document.getElementById('badge-alerts');
+  if(n>0){b.textContent=n;b.classList.remove('hidden');}else b.classList.add('hidden');
+}
+
+function addStockIn(){
+  const med=document.getElementById('si-med').value.trim();const lot=document.getElementById('si-lot').value.trim();const exp=document.getElementById('si-exp').value;const qty=parseInt(document.getElementById('si-qty').value)||0;
+  if(!med||!lot||!exp||qty<1){alert('Please fill all required fields.');return;}
+  DB.stockIn.push({id:`SI-${String(nextS++).padStart(4,'0')}`,date:today(),med,lot,exp,qtyReceived:qty,unit:document.getElementById('si-unit').value,rep:document.getElementById('si-rep').value.trim()});
+  save();renderInventory();toast(`Recorded: ${qty}× ${med} (Lot ${lot})`);
+}
+function computeInv(){
+  const map={};
+  DB.stockIn.forEach(s=>{const k=s.med+'|'+s.lot;if(!map[k])map[k]={med:s.med,lot:s.lot,exp:s.exp,unit:s.unit,rep:s.rep||'',received:0,dispensed:0};map[k].received+=s.qtyReceived;if(s.rep)map[k].rep=s.rep;});
+  DB.entries.forEach(e=>{const k=e.med+'|'+e.lot;if(map[k])map[k].dispensed+=e.qty;});
+  return Object.values(map).sort((a,b)=>a.med.localeCompare(b.med));
+}
+function renderInventory(){
+  const inv=computeInv();const c=document.getElementById('inv-container');
+  if(!inv.length){c.innerHTML='<p style="color:var(--muted);font-size:13px;text-align:center;padding:24px">No stock records yet. Add received samples above.</p>';renderThresholds();return;}
+
+  const q=(document.getElementById('inv-search')||{value:''}).value.toLowerCase();
+  const statusF=(document.getElementById('inv-status')||{value:''}).value;
+  const repF=(document.getElementById('inv-rep')||{value:''}).value;
+
+  const byMed={};
+  inv.forEach(i=>{
+    if(!byMed[i.med])byMed[i.med]={lots:[],rx:0,dx:0,rep:i.rep||''};
+    byMed[i.med].lots.push(i);byMed[i.med].rx+=i.received;byMed[i.med].dx+=i.dispensed;
+    if(i.rep)byMed[i.med].rep=i.rep;
+  });
+
+  const allReps=[...new Set(Object.values(byMed).map(d=>d.rep).filter(Boolean))].sort();
+  const repSel=document.getElementById('inv-rep');
+  if(repSel){
+    const cur=repSel.value;
+    repSel.innerHTML='<option value="">All manufacturers</option>'+allReps.map(r=>`<option value="${r}"${r===cur?' selected':''}>${r}</option>`).join('');
+  }
+
+  let rows=Object.entries(byMed).map(([med,d])=>{
+    const rem=d.rx-d.dx;const thresh=DB.settings.thresholds[med]||0;
+    const cls=rem<=0?'danger':rem<=thresh&&thresh>0?'warn':'ok';
+    return{med,d,rem,thresh,cls};
+  });
+
+  if(q)rows=rows.filter(r=>r.med.toLowerCase().includes(q)||r.d.lots.some(l=>l.lot.toLowerCase().includes(q)));
+  if(statusF)rows=rows.filter(r=>r.cls===statusF);
+  if(repF)rows=rows.filter(r=>r.d.rep===repF);
+
+  if(!rows.length){c.innerHTML='<p style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No matching inventory items.</p>';renderThresholds();return;}
+
+  let html=`<div class="inv-row inv-hdr"><span>Medication</span><span>Lots</span><span>In</span><span>Out</span><span>Remaining</span><span>Status</span></div>`;
+  rows.forEach(({med,d,rem,cls})=>{
+    const pct=d.rx>0?Math.round(rem/d.rx*100):0;
+    const lbl=rem<=0?'Out of stock':cls==='warn'?'Low stock':'In stock';
+    const barColor=rem<=0?'#ef4444':cls==='warn'?'#f59e0b':'#22c55e';
+    html+=`<div class="inv-row"><span style="font-weight:600">${med}<br><span style="font-size:10px;color:var(--muted)">${d.lots.map(l=>l.lot).join(' · ')}</span></span><span>${d.lots.length}</span><span>${d.rx}</span><span>${d.dx}</span><span style="font-weight:700">${rem}<div class="bar-wrap"><div class="bar-fill" style="width:${Math.max(pct,4)}%;background:${barColor}"></div></div></span><span><span class="badge ${cls}">${lbl}</span></span></div>`;
+  });
+  c.innerHTML=html;renderThresholds();
+}
+function setThreshold(){const med=document.getElementById('thresh-med').value.trim();const val=parseInt(document.getElementById('thresh-val').value)||0;if(!med)return;DB.settings.thresholds[med]=val;save();renderThresholds();toast(`Threshold set: ${med} → ${val}`);}
+function removeThreshold(med){delete DB.settings.thresholds[med];save();renderThresholds();}
+function renderThresholds(){
+  const el=document.getElementById('thresh-list');const ents=Object.entries(DB.settings.thresholds);
+  if(!ents.length){el.innerHTML='<p style="font-size:12px;color:var(--muted);margin-bottom:8px">No thresholds set.</p>';return;}
+  el.innerHTML=ents.map(([med,qty])=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px"><span style="flex:1">${med}</span><span style="color:var(--muted)">Min: <strong>${qty}</strong></span><button class="btn btn-sm btn-danger" onclick="removeThreshold('${med.replace(/'/g,"\\'")}')">Remove</button></div>`).join('');
+}
+
+function addRecall(){
+  const lot=document.getElementById('rc-lot').value.trim();if(!lot){alert('Lot number is required.');return;}
+  const med=document.getElementById('rc-med').value.trim();const reason=document.getElementById('rc-reason').value.trim();
+  DB.recalls.push({id:`RC-${String(nextR++).padStart(3,'0')}`,date:today(),lot,med,reason,active:true});
+  save();renderAlerts();updateStats();updateBadge();
+  ['rc-lot','rc-med','rc-reason'].forEach(id=>document.getElementById(id).value='');
+  toast(`Recall flagged: Lot ${lot}`);
+}
+function resolveRecall(id){const r=DB.recalls.find(x=>x.id===id);if(r){r.active=false;save();renderAlerts();updateStats();updateBadge();}}
+
+function renderAlerts(){
+  const al=[];const seenLots=new Set();
+  DB.entries.forEach(e=>{if(seenLots.has(e.lot+e.med))return;seenLots.add(e.lot+e.med);const d=daysTo(e.exp);if(d<0)al.push({cls:'danger',icon:'⚠',title:`EXPIRED: ${e.med} (Lot ${e.lot})`,sub:`Expired ${Math.abs(d)} day${Math.abs(d)===1?'':'s'} ago · Entry ${e.id}`});else if(d<=30)al.push({cls:'warn',icon:'⏰',title:`Expiring in ${d} day${d===1?'':'s'}: ${e.med}`,sub:`Lot ${e.lot} · Entry ${e.id}`});});
+  const inv=computeInv();const byMedRem={};inv.forEach(i=>{if(!byMedRem[i.med])byMedRem[i.med]=0;byMedRem[i.med]+=i.received-i.dispensed;});
+  Object.entries(DB.settings.thresholds).forEach(([med,thresh])=>{const rem=byMedRem[med]||0;if(rem<=thresh)al.push({cls:'warn',icon:'📦',title:`Low stock: ${med}`,sub:`${rem} units remaining · threshold ${thresh}`});});
+  DB.recalls.filter(r=>r.active).forEach(r=>{
+    const cnt=DB.entries.filter(e=>e.lot.trim().toLowerCase()===r.lot.trim().toLowerCase()).length;
+    al.push({cls:'danger',icon:'🚨',title:`RECALL ACTIVE: ${r.med||'Medication'} — Lot ${r.lot}`,sub:`${r.reason||'No reason provided'} · ${cnt} log entries affected · Filed ${fmtD(r.date)}`,rcId:r.id,rcLot:r.lot});
+  });
+  overLimitPatients().forEach(p=>{al.push({cls:'warn',icon:'⚠',title:`Over ${CONFIG.sampleLimitDays}-day sample limit: MRN ${p.mrn}`,sub:`${p.count} samples in past ${CONFIG.sampleLimitDays} days (limit: ${CONFIG.sampleLimitCount})`});});
+
+  (DB.fdaRecalls||[]).filter(r=>!r.dismissed).forEach(r=>{
+    const lotMatch=r.lots&&DB.stockIn.some(s=>r.lots.toLowerCase().includes(s.lot.toLowerCase()));
+    const cls=r.classification||'';
+    const severity=cls.includes('I')?'danger':'warn';
+    const lotNote=lotMatch?` · ⚠ Lot match found in your inventory!`:'';
+    al.push({
+      cls:severity,
+      icon:'🔔',
+      title:`FDA recall detected: ${r.firm||'Unknown firm'}${fdaClassBadge(cls)}`,
+      sub:`${r.product.slice(0,120)}${r.product.length>120?'…':''} · ${r.reason.slice(0,100)}${lotNote} · Initiated ${fmtD((r.date||'').slice(0,4)+'-'+(r.date||'').slice(4,6)+'-'+(r.date||'').slice(6,8))}`,
+      fdaNum:r.recall_number,
+      fdaLots:r.lots,
+    });
+  });
+  const alEl=document.getElementById('alerts-list');
+  if(!al.length){alEl.innerHTML='<p style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No active alerts — all clear.</p>';}
+  else alEl.innerHTML=al.map(a=>`<div class="alert-item ${a.cls}"><div class="alert-icon">${a.icon}</div><div class="alert-content"><div class="alert-title">${a.title}</div><div class="alert-sub">${a.sub}</div>${a.fdaLots?`<div style="font-size:11px;margin-top:4px;color:var(--muted)">Lot info: ${a.fdaLots.slice(0,200)}</div>`:''}</div><div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap">${a.rcLot?`<button class="btn btn-sm btn-ghost no-print" onclick="exportRecallMRNs('${a.rcLot.replace(/'/g,"\\'")}')">Export MRNs</button>`:''}${a.rcId?`<button class="btn btn-sm btn-success no-print" onclick="resolveRecall('${a.rcId}')">Resolve</button>`:''}${a.fdaNum?`<button class="btn btn-sm btn-danger no-print" onclick="flagFDAAsRecall('${a.fdaNum.replace(/'/g,"\\'")}')">Flag in log</button><button class="btn btn-sm btn-ghost no-print" onclick="dismissFDA('${a.fdaNum.replace(/'/g,"\\'")}')">Dismiss</button>`:''}</div></div>`).join('');
+  const rcEl=document.getElementById('recalls-list');
+  if(!DB.recalls.length){rcEl.innerHTML='<p style="font-size:12px;color:var(--muted)">No recalls logged.</p>';return;}
+  rcEl.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>ID</th><th>Date</th><th>Lot #</th><th>Medication</th><th>Reason</th><th>Affected MRNs</th><th>Status</th><th class="no-print"></th></tr></thead><tbody>${DB.recalls.map(r=>{
+    const affected=[...new Set(DB.entries.filter(e=>e.lot.trim().toLowerCase()===r.lot.trim().toLowerCase()&&e.patientMrn).map(e=>e.patientMrn))];
+    return`<tr><td style="font-family:monospace;font-size:11px">${r.id}</td><td>${fmtD(r.date)}</td><td style="font-family:monospace;font-size:11px">${r.lot}</td><td>${r.med||'—'}</td><td>${r.reason||'—'}</td><td style="font-family:monospace;font-size:11px">${affected.length?affected.join(', '):'None logged'}</td><td><span class="badge ${r.active?'danger':'ok'}">${r.active?'Active':'Resolved'}</span></td><td class="no-print" style="white-space:nowrap">${r.active?`<button class="btn btn-sm btn-ghost" onclick="exportRecallMRNs('${r.lot.replace(/'/g,"\\'")}')">Export MRNs</button> <button class="btn btn-sm btn-success" onclick="resolveRecall('${r.id}')">Resolve</button>`:''}</td></tr>`;
+  }).join('')}</tbody></table></div>`;
+}
+
+function periodEntries(){
+  const p=document.getElementById('rep-period').value;const now=new Date();
+  return DB.entries.filter(e=>{if(p==='all')return true;const d=new Date(e.date);if(p==='month')return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();if(p==='quarter'){const q=Math.floor(now.getMonth()/3);return d.getFullYear()===now.getFullYear()&&Math.floor(d.getMonth()/3)===q;}return true;});
+}
+function groupBy(entries,key){const m={};entries.forEach(e=>{const k=e[key]||'Unknown';m[k]=(m[k]||0)+1;});return Object.entries(m).sort((a,b)=>b[1]-a[1]);}
+function barChart(data,max){
+  if(!data.length)return'<p style="font-size:12px;color:var(--muted)">No data for this period.</p>';
+  return data.slice(0,10).map(([lbl,val])=>{const pct=max>0?Math.max(Math.round(val/max*100),8):8;return`<div class="rbar-row"><div class="rbar-lbl" title="${lbl}">${lbl}</div><div class="rbar-track"><div class="rbar-fill" style="width:${pct}%">${val}</div></div></div>`;}).join('');
+}
+function renderReports(){
+  const ents=periodEntries();const total=ents.length;const uniqPt=new Set(ents.map(e=>e.patientMrn).filter(Boolean)).size;const uniqMed=new Set(ents.map(e=>e.med)).size;
+  document.getElementById('rep-stats').innerHTML=`<div class="stat"><div class="stat-label">Total dispensed</div><div class="stat-val blue">${total}</div></div><div class="stat"><div class="stat-label">Unique patients</div><div class="stat-val">${uniqPt}</div></div><div class="stat"><div class="stat-label">Unique medications</div><div class="stat-val">${uniqMed}</div></div><div class="stat"><div class="stat-label">Today</div><div class="stat-val blue">${ents.filter(e=>e.date===today()).length}</div></div>`;
+  const bm=groupBy(ents,'med'),bd=groupBy(ents,'dr'),br=groupBy(ents,'rep'),bs=groupBy(ents,'staff');
+  document.getElementById('rep-med').innerHTML=barChart(bm,bm[0]?.[1]||1);document.getElementById('rep-dr').innerHTML=barChart(bd,bd[0]?.[1]||1);document.getElementById('rep-rep').innerHTML=barChart(br,br[0]?.[1]||1);document.getElementById('rep-staff').innerHTML=barChart(bs,bs[0]?.[1]||1);
+}
+
+function renderAudit(){
+  const tb=document.getElementById('audit-body');
+  if(!DB.auditLog.length){tb.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No audit records yet.</td></tr>`;return;}
+  const acBadge=a=>a==='delete'?`<span class="badge danger">delete</span>`:a==='edit'?`<span class="badge warn">edit</span>`:`<span class="badge ok">add</span>`;
+  tb.innerHTML=DB.auditLog.map(l=>`<tr><td style="font-size:11px;white-space:nowrap">${fmtDT(l.ts)}</td><td>${acBadge(l.action)}</td><td style="font-family:monospace;font-size:11px">${l.id}</td><td style="color:var(--muted)">${l.field}</td><td style="font-size:11px;max-width:160px;color:var(--muted)">${l.before}</td><td style="font-size:11px;max-width:160px">${l.after}</td><td style="font-family:monospace;text-align:center">${l.by}</td></tr>`).join('');
+}
+
+function exportCSV(){
+  if(!DB.entries.length){alert('No entries to export.');return;}
+  const headers=['ID','Date','Time','Medication','Brand','Lot #','Expiry','Qty','Unit','Physician','Rep','Staff','Patient MRN','Notes','Edits'];
+  const rows=DB.entries.map(e=>[e.id,e.date,e.time,e.med,e.brand||'',e.lot,e.exp,e.qty,e.unit,e.dr,e.rep||'',e.staff,e.patientMrn||'',e.notes||'',(e.editHistory||[]).length].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+  const csv=[headers.join(','),...rows].join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download=`med-sample-log-${today()}.csv`;a.click();
+}
+
+function exportRecallMRNs(lot){
+  const affected=DB.entries.filter(e=>e.lot.trim().toLowerCase()===lot.trim().toLowerCase()&&e.patientMrn);
+  if(!affected.length){alert(`No patient MRNs found for lot ${lot}.`);return;}
+  const headers=['Patient MRN','Date Dispensed','Medication','Lot #','Physician','Entry ID'];
+  const rows=affected.map(e=>[e.patientMrn,e.date,e.med,e.lot,e.dr,e.id].map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(','));
+  const csv=[`# Recall notification export — Lot ${lot} — Generated ${new Date().toLocaleString()}`,headers.join(','),...rows].join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download=`recall-mrns-lot-${lot}-${today()}.csv`;a.click();
+  toast(`Exported ${affected.length} affected MRN${affected.length===1?'':'s'} for Lot ${lot}`);
+}
+
+function seedData(){
+  const lots=['XA209341','LB881122','ZK440023','PM139988','RJ772014'];
+  const exps=['2026-06-15','2026-04-01','2026-09-20','2025-05-30','2027-08-10'];
+  const mrns=['MRN-100241','MRN-200387','MRN-300122','MRN-400819','MRN-500334'];
+  const t=today();
+  for(let i=0;i<12;i++){const m=MEDS[i%MEDS.length];DB.entries.push({id:`MS-${String(nextE++).padStart(4,'0')}`,date:t,time:`${pad(8+Math.floor(i/2))}:${i%2===0?'00':'30'}`,med:m.name,brand:m.brand,lot:lots[i%lots.length],exp:exps[i%exps.length],qty:1,unit:'pen',dr:PHYSICIANS[i%PHYSICIANS.length],rep:m.rep,staff:STAFF_LIST[i%STAFF_LIST.length],patientMrn:mrns[i%mrns.length],notes:'',editHistory:[]});}
+  MEDS.slice(0,7).forEach((m,i)=>{DB.stockIn.push({id:`SI-${String(nextS++).padStart(4,'0')}`,date:t,med:m.name,lot:lots[i%lots.length],exp:exps[i%exps.length],qtyReceived:20,unit:'pen',rep:m.rep});});
+  DB.settings.thresholds['Ozempic 1mg']=5;DB.settings.thresholds['Mounjaro 5mg']=5;save();
+}
+
+// ─── FDA RECALL CHECK ──────────────────────────
+const FDA_TERMS=[
+  'semaglutide','ozempic','wegovy','rybelsus',
+  'tirzepatide','mounjaro','zepbound',
+  'dulaglutide','trulicity',
+  'liraglutide','victoza','saxenda',
+  'empagliflozin','jardiance',
+  'dapagliflozin','farxiga',
+  'insulin glargine','lantus','toujeo','basaglar',
+  'insulin degludec','tresiba',
+  'levothyroxine','synthroid',
+  'denosumab','prolia',
+  'alendronate','fosamax',
+  'romosozumab','evenity',
+];
+
+function getInventoryTerms(){
+  const names=[...new Set([
+    ...DB.stockIn.map(s=>(s.med||'').toLowerCase()),
+    ...DB.entries.map(e=>(e.med||'').toLowerCase()),
+  ])].filter(Boolean);
+  const matched=FDA_TERMS.filter(term=>names.some(n=>n.includes(term)||term.includes(n.split(' ')[0])));
+  return matched.length?matched:FDA_TERMS.slice(0,6);
+}
+
+async function checkFDA(manual=false){
+  const statusEl=document.getElementById('fda-status');
+  if(statusEl)statusEl.textContent='FDA: checking…';
+  const terms=getInventoryTerms();
+  const query=terms.slice(0,4).join('+OR+');
+  const since=new Date();since.setDate(since.getDate()-90);
+  const sinceStr=since.toISOString().slice(0,10).replace(/-/g,'');
+  const fdaBase=`https://api.fda.gov/drug/enforcement.json?search=product_description:(${encodeURIComponent(query)})+AND+recall_initiation_date:[${sinceStr}+TO+99991231]&limit=20`;
+  const url=fdaBase;
+  try{
+    const res=await fetch(url);
+    if(!res.ok)throw new Error('FDA API error '+res.status);
+    const json=await res.json();
+    const results=json.results||[];
+    const now=new Date().toISOString();
+    const seen=new Set((DB.fdaRecalls||[]).map(r=>r.recall_number));
+    let newCount=0;
+    results.forEach(r=>{
+      if(seen.has(r.recall_number))return;
+      const cls=r.classification||'';
+      const isSerious=cls.includes('I')||cls.includes('II');
+      if(!isSerious&&!manual)return;
+      if(!DB.fdaRecalls)DB.fdaRecalls=[];
+      DB.fdaRecalls.unshift({
+        recall_number:r.recall_number,
+        date:r.recall_initiation_date||'',
+        product:r.product_description||'',
+        reason:r.reason_for_recall||'',
+        firm:r.recalling_firm||'',
+        classification:cls,
+        lots:r.code_info||'',
+        status:r.status||'',
+        fetched:now,
+        dismissed:false,
+      });
+      newCount++;
+    });
+    if(newCount>0){save();updateBadge();}
+    const lastCheck=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    if(statusEl)statusEl.textContent=`FDA: checked ${lastCheck} · ${newCount} new`;
+    localStorage.setItem('fdaLastCheck',Date.now());
+    if(document.getElementById('tab-alerts').classList.contains('active'))renderAlerts();
+  }catch(err){
+    if(statusEl)statusEl.textContent='FDA: offline or unavailable';
+    console.warn('FDA check failed:',err);
+  }
+}
+
+function dismissFDA(recall_number){
+  const r=(DB.fdaRecalls||[]).find(x=>x.recall_number===recall_number);
+  if(r){r.dismissed=true;save();renderAlerts();updateBadge();}
+}
+
+function flagFDAAsRecall(recall_number){
+  const r=(DB.fdaRecalls||[]).find(x=>x.recall_number===recall_number);
+  if(!r)return;
+  const lot=prompt(`Enter the specific lot number to flag (from the FDA notice):\n\n${r.fdaLots||r.lots||'Lot info not available — check FDA notice directly'}`)?.trim();
+  if(!lot)return;
+  DB.recalls.push({id:`RC-${String(nextR++).padStart(3,'0')}`,date:today(),lot,med:r.product.slice(0,60),reason:`FDA recall ${r.recall_number} — ${r.reason.slice(0,120)}`,active:true});
+  r.dismissed=true;
+  save();renderAlerts();updateStats();updateBadge();
+  toast(`Recall flagged: Lot ${lot}`);
+}
+
+function startFDAPoller(){
+  const last=parseInt(localStorage.getItem('fdaLastCheck')||'0');
+  const hourMs=60*60*1000;
+  const sinceLastCheck=Date.now()-last;
+  if(sinceLastCheck>hourMs)checkFDA(false);
+  setInterval(()=>checkFDA(false),hourMs);
+}
+
+function fdaClassBadge(cls){
+  if(!cls)return'';
+  if(cls.includes('I'))return`<span class="badge danger" style="margin-left:6px">Class I</span>`;
+  if(cls.includes('II'))return`<span class="badge warn" style="margin-left:6px">Class II</span>`;
+  return`<span class="badge neutral" style="margin-left:6px">${cls}</span>`;
+}
+
+// ─── PIN LOCK ───────────────────────────────────
+let pinCallback=null;
+
+function requirePin(callback){
+  if(sessionStorage.getItem('pinUnlocked')==='1'){callback();return;}
+  pinCallback=callback;
+  const modal=document.getElementById('pin-modal');
+  modal.style.display='flex';
+  document.getElementById('pin-input').value='';
+  document.getElementById('pin-error').textContent='';
+  setTimeout(()=>document.getElementById('pin-input').focus(),50);
+}
+
+function submitPin(){
+  const entered=document.getElementById('pin-input').value.trim();
+  if(entered===String(CONFIG.adminPin)){
+    sessionStorage.setItem('pinUnlocked','1');
+    document.getElementById('pin-modal').style.display='none';
+    document.getElementById('pin-error').textContent='';
+    if(pinCallback){pinCallback();pinCallback=null;}
+  } else {
+    document.getElementById('pin-error').textContent='Incorrect PIN — try again';
+    document.getElementById('pin-input').value='';
+    document.getElementById('pin-input').focus();
+  }
+}
+
+function closePinModal(){
+  document.getElementById('pin-modal').style.display='none';
+  pinCallback=null;
+}
+
+function toggleConfig(){requirePin(()=>_showConfig());}
+
+function _showConfig(){
+  const p=document.getElementById('config-panel');
+  const show=p.style.display==='none';
+  p.style.display=show?'block':'none';
+  if(show){
+    document.getElementById('cfg-clinic').textContent=CONFIG.clinicName;
+    document.getElementById('cfg-physicians').innerHTML=CONFIG.physicians.map(p=>`${p}`).join('<br>');
+    document.getElementById('cfg-staff').textContent=CONFIG.staff.join(', ');
+    document.getElementById('cfg-limit').textContent=`Max ${CONFIG.sampleLimitCount} per ${CONFIG.sampleLimitDays} days`;
+    document.getElementById('cfg-expiry').textContent=`Warn at ≤ ${CONFIG.expiryWarnDays} days`;
+    document.getElementById('cfg-meds').textContent=`${CONFIG.medications.length} medications`;
+  }
+}
+
+function init(){
+  load();
+  document.getElementById('hdr-clinic').textContent=`${CONFIG.clinicName} — Sample Dispensing Record`;
+  document.getElementById('hdr-date').textContent=new Date().toLocaleDateString('en-US',{weekday:'short',month:'long',day:'numeric',year:'numeric'});
+  ['ml1','ml2','ml3','ml4'].forEach(id=>{const dl=document.getElementById(id);MEDS.forEach(m=>{const o=document.createElement('option');o.value=m.name;dl.appendChild(o);});});
+  const drS=document.getElementById('f-dr'),drF=document.getElementById('ff-dr');
+  PHYSICIANS.forEach(p=>{[drS,drF].forEach(s=>{const o=document.createElement('option');o.value=p;o.textContent=p;s.appendChild(o);});});
+  const staffEls=[document.getElementById('f-staff'),document.getElementById('session-staff')];
+  STAFF_LIST.forEach(s=>{staffEls.forEach(el=>{const o=document.createElement('option');o.value=s;o.textContent=s;el.appendChild(o);});});
+  const ss=sessionStorage.getItem('sessionStaff')||'';
+  if(ss){document.getElementById('session-staff').value=ss;document.getElementById('f-staff').value=ss;}
+  if(!DB.entries.length)seedData();
+  renderTable();updateStats();updateBadge();renderRecentLots();
+  startFDAPoller();
+}
+init();
+</script>
+</body>
+</html>
