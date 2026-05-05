@@ -1063,7 +1063,7 @@ function addStockIn(){
 }
 function computeInv(){
   const map={};
-  DB.stockIn.forEach(s=>{const k=s.med+'|'+s.lot;if(!map[k])map[k]={med:s.med,lot:s.lot,exp:s.exp,unit:s.unit,rep:s.rep||'',received:0,dispensed:0};map[k].received+=s.qtyReceived;if(s.rep)map[k].rep=s.rep;});
+  DB.stockIn.forEach(s=>{const k=s.med+'|'+s.lot;if(!map[k])map[k]={id:s.id,med:s.med,lot:s.lot,exp:s.exp,unit:s.unit,rep:s.rep||'',received:0,dispensed:0};map[k].received+=s.qtyReceived;if(s.rep)map[k].rep=s.rep;});
   DB.entries.forEach(e=>{const k=e.med+'|'+e.lot;if(map[k])map[k].dispensed+=e.qty;});
   return Object.values(map).sort((a,b)=>a.med.localeCompare(b.med));
 }
