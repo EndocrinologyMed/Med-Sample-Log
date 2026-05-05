@@ -450,27 +450,48 @@ const CONFIG = {
   // Change this to any number you like. Staff enter it once per session.
   adminPin: '1234',
 
-  // ── Physicians (add or remove lines freely) ──────────────────
-  physicians: [
-    'Dr. A. Patel',
-    'Dr. M. Chen',
-    'Dr. S. Rivera',
-    'Dr. J. Williams',
-    'Dr. L. Kim',
+  // ── Providers (add or remove lines freely) ──────────────────
+  providers: [
+    'Dr. J. Mulinda',
+    'Dr. D. Bailey',
+    'S. Wright',
+    'R. Marrs',
+    'E. Myers',
   ],
 
   // ── Staff initials (shown in dispensed-by dropdown) ──────────
-  staff: ['KA','BT','MP','RS','JL','WH'], // ── User roles ───────────────────────────────────────────────
+  staff: ['AA','AW','ANW','BR','BB','CR','DG','DJB','EJM','JC','JRM','JS','JO','KS','LH','LJP','MRC','MC','PC','RK','RPM','RD','SEW','SJ','SP','TJ','OB'], // ── User roles ───────────────────────────────────────────────
 // 'admin'    → can edit/delete any entry and any inventory record
 // 'self'     → can edit only their own dispensing entries (no deletes, no inventory)
 // 'readonly' → cannot edit or delete anything
 roles: {
-  'KA': 'admin',
-  'BT': 'admin',
-  'MP': 'self',
-  'RS': 'self',
-  'JL': 'readonly',
-  'WH': 'readonly',
+  'DJB': 'admin',   // Dewey James Bailey — Provider
+  'EJM': 'admin',   // Erin Myers — Provider
+  'JRM': 'admin',   // James Mulinda — Provider
+  'RPM': 'admin',   // Reilly Marrs — Provider
+  'SEW': 'admin',   // Savannah Wright — Provider
+  'JC':  'admin',   // Jennifer Chappelear
+  'CR':  'self',    // Charity Rindorf — MA
+  'LH':  'self',    // Laurel Herring — MA
+  'MRC': 'self',    // Madison Cook — MA
+  'RK':  'self',    // Rebecca Korkowski — MA
+  'RD':  'self',    // Renee Doubleday — MA
+  'SJ':  'self',    // Sha'Quan Jones — MA
+  'OB':  'self',    // Omnia Basha — MA
+  'AA':  'readonly',    // Alexis Andrews — Patient Advocate
+  'AW':  'readonly',    // Amber Wilson — Patient Advocate
+  'DG':  'readonly',    // Deborah Grimes — Patient Advocate
+  'JS':  'readonly',    // Jennifer Suttles — Patient Advocate
+  'LJP': 'readonly',    // Lisa Jones-Pence — Patient Advocate
+  'MC':  'readonly',    // Melissa Chrisley — Patient Advocate
+  'TJ':  'readonly',    // Tabatha Johnson — Patient Advocate
+  'BR':  'self',    // Bevin Ricca — Front
+  'BB':  'self',    // Bronwyn Bevin — Front
+  'ANW': 'readonly', // Ashley Whitaker — Front
+  'KS':  'readonly', // Kiera Sapienza — Front
+  'PC':  'readonly', // Payton Camp — Front
+  'JO':  'readonly', // Johannies Ortega — Call Center
+  'SP':  'readonly', // Stevie Pezzulo — Call Center
 },
 
   // ── Sample limit: max samples per patient per window ─────────
@@ -1250,7 +1271,28 @@ function resolveRecall(id){
 
 function renderAlerts(){
   const al=[];const seenLots=new Set();
-  DB.entries.forEach(e=>{if(seenLots.has(e.lot+e.med))return;seenLots.add(e.lot+e.med);const d=daysTo(e.exp);if(d<0)al.push({cls:'danger',icon:'⚠',title:`EXPIRED: ${e.med} (Lot ${e.lot})`,sub:`Expired ${Math.abs(d)} day${Math.abs(d)===1?'':'s'} ago · Entry ${e.id}`});else if(d<=30)al.push({cls:'warn',icon:'⏰',title:`Expiring in ${d} day${d===1?'':'s'}: ${e.med}`,sub:`Lot ${e.lot} · Entry ${e.id}`});});
+
+// Check inventory stock records for expiry
+DB.stockIn.forEach(s=>{
+  if(seenLots.has(s.lot+s.med))return;
+  seenLots.add(s.lot+s.med);
+  const d=daysTo(s.exp);
+  const inv=computeInv();
+  const item=inv.find(i=>i.med===s.med&&i.lot===s.lot);
+  const rem=item?(item.received-item.dispensed):s.qtyReceived;
+  if(rem<=0)return; // skip if already fully dispensed
+  if(d<0)al.push({cls:'danger',icon:'⚠',title:`EXPIRED STOCK: ${s.med} (Lot ${s.lot})`,sub:`Expired ${Math.abs(d)} day${Math.abs(d)===1?'':'s'} ago · ${rem} unit${rem===1?'':'s'} still on hand · ${s.rep||'Location not set'}`});
+  else if(d<=CONFIG.expiryWarnDays)al.push({cls:'warn',icon:'⏰',title:`Expiring in ${d} day${d===1?'':'s'}: ${s.med}`,sub:`Lot ${s.lot} · ${rem} unit${rem===1?'':'s'} remaining · ${s.rep||'Location not set'}`});
+});
+
+// Also check dispensing log for any entries with expiry not already caught above
+DB.entries.forEach(e=>{
+  if(seenLots.has(e.lot+e.med))return;
+  seenLots.add(e.lot+e.med);
+  const d=daysTo(e.exp);
+  if(d<0)al.push({cls:'danger',icon:'⚠',title:`EXPIRED: ${e.med} (Lot ${e.lot})`,sub:`Expired ${Math.abs(d)} day${Math.abs(d)===1?'':'s'} ago · Entry ${e.id}`});
+  else if(d<=CONFIG.expiryWarnDays)al.push({cls:'warn',icon:'⏰',title:`Expiring in ${d} day${d===1?'':'s'}: ${e.med}`,sub:`Lot ${e.lot} · Entry ${e.id}`});
+});
   const inv=computeInv();const byMedRem={};inv.forEach(i=>{if(!byMedRem[i.med])byMedRem[i.med]=0;byMedRem[i.med]+=i.received-i.dispensed;});
   Object.entries(DB.settings.thresholds).forEach(([med,thresh])=>{const rem=byMedRem[med]||0;if(rem<=thresh)al.push({cls:'warn',icon:'📦',title:`Low stock: ${med}`,sub:`${rem} units remaining · threshold ${thresh}`});});
   DB.recalls.filter(r=>r.active).forEach(r=>{
