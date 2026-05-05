@@ -460,7 +460,18 @@ const CONFIG = {
   ],
 
   // ── Staff initials (shown in dispensed-by dropdown) ──────────
-  staff: ['KA','BT','MP','RS','JL','WH'],
+  staff: ['KA','BT','MP','RS','JL','WH'], // ── User roles ───────────────────────────────────────────────
+// 'admin'    → can edit/delete any entry and any inventory record
+// 'self'     → can edit only their own dispensing entries (no deletes, no inventory)
+// 'readonly' → cannot edit or delete anything
+roles: {
+  'KA': 'admin',
+  'BT': 'admin',
+  'MP': 'self',
+  'RS': 'self',
+  'JL': 'readonly',
+  'WH': 'readonly',
+},
 
   // ── Sample limit: max samples per patient per window ─────────
   sampleLimitCount: 3,       // alert triggers above this number
@@ -746,7 +757,26 @@ function onSessionStaffChange(val){
   sessionStorage.setItem('sessionStaff',val);
   document.getElementById('f-staff').value=val;
 }
+// ── Permission helpers ────────────────────────────────────────
+function sessionStaff(){return sessionStorage.getItem('sessionStaff')||'';}
+function currentRole(){return CONFIG.roles[sessionStaff()]||'readonly';}
 
+function canEditEntry(entryStaff){
+  const role=currentRole();
+  if(role==='admin')return true;
+  if(role==='self')return entryStaff&&entryStaff===sessionStaff();
+  return false;
+}
+function canDeleteEntry(){return currentRole()==='admin';}
+function canEditInventory(){return currentRole()==='admin';}
+
+function denyMsg(action){
+  const role=currentRole();
+  const who=sessionStaff()||'No user selected';
+  if(!sessionStaff()){toast('⚠ Please select your initials first (top-right "I am" dropdown).');return;}
+  if(role==='readonly')toast(`⛔ ${who} is read-only and cannot ${action}.`);
+  else if(role==='self')toast(`⛔ ${who} can only ${action==='delete'?'edit, not delete':action+' their own entries'}.`);
+}
 let lotKnown=false;
 
 function lotAutofill(val){
@@ -882,6 +912,7 @@ function submitEntry(){
 
 function editEntry(id){
   const e=DB.entries.find(x=>x.id===id);if(!e)return;
+  if(!canEditEntry(e.staff)){denyMsg('edit');return;}
   editingId=id;
   document.getElementById('f-med').value=e.med||'';document.getElementById('f-brand').value=e.brand||'';document.getElementById('f-lot').value=e.lot||'';document.getElementById('f-exp').value=e.exp||'';document.getElementById('f-qty').value=e.qty||1;document.getElementById('f-unit').value=e.unit||'pen';document.getElementById('f-dr').value=e.dr||'';document.getElementById('f-rep').value=e.rep||'';document.getElementById('f-staff').value=e.staff||'';document.getElementById('f-mrn').value=e.patientMrn||'';document.getElementById('f-notes').value=e.notes||'';
   document.getElementById('form-label').textContent=`Editing ${id}`;document.getElementById('form-submit-btn').textContent='Save changes';
@@ -890,6 +921,7 @@ function editEntry(id){
 }
 
 function deleteEntry(id){
+  if(!canDeleteEntry()){denyMsg('delete');return;}
   requirePin(()=>_deleteEntry(id));
 }
 function _deleteEntry(id){
@@ -972,7 +1004,10 @@ function renderTable(){
     <td title="${e.dr}">${e.dr.replace('Dr. ','Dr.')}</td>
     <td style="font-family:monospace;font-size:11px">${e.patientMrn||'—'}${overLimit?`<br><span class="badge limit-badge">Over limit (${ptCount})</span>`:''}</td>
     <td style="font-family:monospace;text-align:center">${e.staff}</td>
-    <td class="no-print"><button class="btn btn-ghost btn-sm" onclick="editEntry('${e.id}')" style="margin-right:3px">Edit</button><button class="btn btn-danger btn-sm" onclick="deleteEntry('${e.id}')">Del</button></td>
+    <td class="no-print">
+  <button class="btn btn-ghost btn-sm" onclick="editEntry('${e.id}')" style="margin-right:3px;${canEditEntry(e.staff)?'':'opacity:.35;cursor:not-allowed'" title="${canEditEntry(e.staff)?'Edit entry':'No edit permission'}">Edit</button>
+  <button class="btn btn-danger btn-sm" onclick="deleteEntry('${e.id}')" style="${canDeleteEntry()?'':'opacity:.35;cursor:not-allowed'" title="${canDeleteEntry()?'Delete entry':'Admin only'}">Del</button>
+</td>
   </tr>`;}).join('');}
   document.getElementById('pager-info').textContent=total?`${start+1}–${Math.min(start+PER,total)} of ${total}`:'0 results';
   document.getElementById('btn-prev').disabled=page<=1;document.getElementById('btn-next').disabled=start+PER>=total;
@@ -1076,7 +1111,7 @@ function renderInventory(){
       <td style="font-weight:700">${rem}<div class="bar-wrap"><div class="bar-fill" style="width:${Math.max(pct,4)}%;background:${barColor}"></div></div></td>
       <td style="font-size:12px">${i.rep||'—'}</td>
       <td><span class="badge ${cls}">${lbl}</span></td>
-      <td class="no-print"><button class="btn btn-ghost btn-sm" onclick="editStockIn('${i.id}')">Edit</button></td>
+      <td class="no-print"><button class="btn btn-ghost btn-sm" onclick="editStockIn('${i.id}')" style="${canEditInventory()?'':'opacity:.35;cursor:not-allowed'" title="${canEditInventory()?'Edit receipt':'Admin only'}">Edit</button></td>
     </tr>`).join('');
   }).join('')}</tbody>
 </table></div>`;
@@ -1093,6 +1128,7 @@ function renderThresholds(){
 let editingStockId=null;
 
 function editStockIn(id){
+  if(!canEditInventory()){denyMsg('edit inventory');return;}
   requirePin(()=>_openSiEditModal(id));
 }
 
