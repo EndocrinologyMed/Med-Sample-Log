@@ -1012,23 +1012,28 @@ function renderTable(){
   const f=getFiltered();const total=f.length;const start=(page-1)*PER;const slice=f.slice(start,start+PER);
   const tbody=document.getElementById('log-body');
   const cutoff6m=new Date();cutoff6m.setDate(cutoff6m.getDate()-CONFIG.sampleLimitDays);
-  if(!slice.length){tbody.innerHTML=`<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--muted)">No entries found.</td></tr>`;}
-  else{tbody.innerHTML=slice.map(e=>{
-    const rc=isRecalled(e.lot);
-    const ptCount=e.patientMrn?DB.entries.filter(x=>x.patientMrn&&x.patientMrn.trim().toLowerCase()===e.patientMrn.trim().toLowerCase()&&new Date(x.date)>=cutoff6m).length:0;
-    const overLimit=ptCount>3;
-    return`<tr style="${rc?'background:#fef9c3':overLimit?'background:#fdf2f8':''}">
-    <td style="font-family:monospace;font-size:10px;color:var(--muted)">${e.id}</td>
-    <td>${fmtD(e.date)}</td><td style="color:var(--muted)">${e.time}</td>
-    <td title="${e.med}${e.brand?' ('+e.brand+')':''}" style="font-weight:600">${e.med}${rc?` <span class="badge recall-badge">RECALL</span>`:''}</td>
-    <td style="font-family:monospace;font-size:11px">${e.lot}</td>
-    <td>${expBadge(e.exp)}</td>
-    <td style="text-align:center">${e.qty} ${e.unit}</td>
-    <td title="${e.dr}">${e.dr.replace('Dr. ','Dr.')}</td>
-    <td style="font-family:monospace;font-size:11px">${e.patientMrn||'—'}${overLimit?`<br><span class="badge limit-badge">Over limit (${ptCount})</span>`:''}</td>
-    <td style="font-family:monospace;text-align:center">${e.staff}</td>
-    <td class="no-print"><button class="btn btn-ghost btn-sm" onclick="editEntry('${e.id}')" style="margin-right:3px;${canEd?'':'opacity:.35;cursor:not-allowed'}">Edit</button><button class="btn btn-danger btn-sm" onclick="deleteEntry('${e.id}')" style="${canDel?'':'opacity:.35;cursor:not-allowed'}">Del</button></td>
-  </tr>`;}).join('');}
+  if(!slice.length){tbody.innerHTML=`<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--muted)">No entries found.</td></tr>`;}
+  else{
+    const canDel=canDeleteEntry();
+    tbody.innerHTML=slice.map(e=>{
+      const rc=isRecalled(e.lot);
+      const canEd=canEditEntry(e.staff);
+      const ptCount=e.patientMrn?DB.entries.filter(x=>x.patientMrn&&x.patientMrn.trim().toLowerCase()===e.patientMrn.trim().toLowerCase()&&new Date(x.date)>=cutoff6m).length:0;
+      const overLimit=ptCount>3;
+      return`<tr style="${rc?'background:#fef9c3':overLimit?'background:#fdf2f8':''}">
+      <td style="font-family:monospace;font-size:10px;color:var(--muted)">${e.id}</td>
+      <td>${fmtD(e.date)}</td><td style="color:var(--muted)">${e.time}</td>
+      <td title="${e.med}${e.brand?' ('+e.brand+')':''}" style="font-weight:600">${e.med}${rc?' <span class="badge recall-badge">RECALL</span>':''}</td>
+      <td style="font-family:monospace;font-size:11px">${e.lot}</td>
+      <td>${expBadge(e.exp)}</td>
+      <td style="text-align:center">${e.qty} ${e.unit}</td>
+      <td title="${e.dr}">${e.dr.replace('Dr. ','Dr.')}</td>
+      <td style="font-family:monospace;font-size:11px">${e.patientMrn||'—'}${overLimit?'<br><span class="badge limit-badge">Over limit ('+ptCount+')</span>':''}</td>
+      <td style="font-family:monospace;text-align:center">${e.staff}</td>
+      <td class="no-print"><button class="btn btn-ghost btn-sm" onclick="editEntry('${e.id}')" style="margin-right:3px;${canEd?'':'opacity:.35;cursor:not-allowed'}">Edit</button><button class="btn btn-danger btn-sm" onclick="deleteEntry('${e.id}')" style="${canDel?'':'opacity:.35;cursor:not-allowed'}">Del</button></td>
+    </tr>`;
+    }).join('');
+  }
   document.getElementById('pager-info').textContent=total?`${start+1}–${Math.min(start+PER,total)} of ${total}`:'0 results';
   document.getElementById('btn-prev').disabled=page<=1;document.getElementById('btn-next').disabled=start+PER>=total;
 }
