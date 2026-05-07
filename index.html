@@ -355,6 +355,31 @@ tr:hover td{background:#f0f5ff}
     <div class="card"><div class="card-title">By staff member</div><div id="rep-staff"></div></div>
   </div>
 </div>
+  <!-- RECALL IMPACT MODAL -->
+<div id="recall-impact-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:150;align-items:flex-start;justify-content:center;padding-top:60px;overflow-y:auto">
+  <div style="background:#fff;border-radius:var(--radius-lg);width:90%;max-width:820px;box-shadow:0 8px 32px rgba(0,0,0,.2);margin-bottom:40px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)">
+      <div>
+        <div style="font-weight:700;font-size:15px;color:#dc2626" id="rim-title">🚨 Recall Impact</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px" id="rim-sub"></div>
+      </div>
+      <button onclick="closeRecallImpact()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 12px;cursor:pointer;font-size:13px">✕ Close</button>
+    </div>
+    <div style="padding:16px 20px">
+      <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Patient checklist</div>
+      <div id="rim-patients"></div>
+      <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">General notes</div>
+        <textarea id="rim-action" rows="3" placeholder="Any additional notes about this recall response…" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:inherit;resize:vertical"></textarea>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+          <button class="btn btn-ghost" onclick="closeRecallImpact()">Close</button>
+          <button class="btn btn-primary" onclick="saveRecallAction()">Save notes</button>
+        </div>
+      </div>
+      <div id="rim-existing-action" style="display:none;margin-top:12px;padding:10px 12px;background:var(--green-bg);border:1px solid var(--green-bd);border-radius:var(--radius);font-size:13px"></div>
+    </div>
+  </div>
+</div>
 <!-- INVENTORY EDIT MODAL -->
 <div id="si-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:150;align-items:center;justify-content:center">
   <div style="background:#fff;border-radius:var(--radius-lg);padding:24px;width:90%;max-width:580px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
@@ -500,7 +525,15 @@ roles: {
 
   // ── Expiry warning window ─────────────────────────────────────
   expiryWarnDays: 30,        // show amber badge when ≤ this many days left
-
+  
+// ── Recall response checklist ─────────────────────────────────
+recallChecklist: [
+  'Patient contacted',
+  'Advised to stop use',
+  'Medication retrieved',
+  'Replacement provided',
+  'Medication disposed',
+],
   // ── Medications (name shown in lot chips + autofill) ─────────
   // Format: { name, brand, rep }
   medications: [
@@ -577,7 +610,7 @@ async function loadFromSupabase(){
     DB.entries=(e.data||[]).map(mapEntry);
     DB.stockIn=(s.data||[]).map(mapStockIn);
     DB.disposals=d.data||[];
-    DB.recalls=r.data||[];
+    DB.recalls=(r.data||[]).map(x=>({...x,patientActions:x.patient_actions||{},actionNotes:x.action_notes||'',actionDate:x.action_date||'',actionBy:x.action_by||''}));
     DB.auditLog=(a.data||[]).map(mapAudit);
     const thresh=(st.data||[]).find(x=>x.key==='thresholds');
     if(thresh)DB.settings.thresholds=thresh.value||{};
@@ -678,6 +711,10 @@ async function sbSaveRecall(r){
   await sbWrite('recalls','upsert',{
     id:r.id,date:r.date,lot:r.lot,med:r.med||null,
     reason:r.reason||null,active:r.active,
+    action_notes:r.actionNotes||null,
+    action_date:r.actionDate||null,
+    action_by:r.actionBy||null,
+    patient_actions:r.patientActions||null,
   });
 }
 
@@ -1257,18 +1294,99 @@ function renderDisposals(){
   el.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>ID</th><th>Date</th><th>Lot #</th><th>Medication</th><th>Qty</th><th>Reason</th><th>Method</th><th>Staff</th><th>Notes</th></tr></thead><tbody>${DB.disposals.map(d=>`<tr><td style="font-family:monospace;font-size:11px">${d.id}</td><td>${fmtD(d.date)}</td><td style="font-family:monospace;font-size:11px">${d.lot}</td><td>${d.med||'—'}</td><td>${d.qty}</td><td>${reasonBadge(d.reason)?`<span class="badge ${reasonBadge(d.reason)}">${d.reason}</span>`:d.reason}</td><td style="font-size:11px">${d.method||'—'}</td><td style="font-family:monospace">${d.staff}</td><td style="font-size:11px;color:var(--muted)">${d.notes||'—'}</td></tr>`).join('')}</tbody></table></div>`;
 }
 
-function addRecall(){
+function function addRecall(){
   const lot=document.getElementById('rc-lot').value.trim();if(!lot){alert('Lot number is required.');return;}
   const med=document.getElementById('rc-med').value.trim();const reason=document.getElementById('rc-reason').value.trim();
-  const recall={id:`RC-${String(nextR++).padStart(3,'0')}`,date:today(),lot,med,reason,active:true};
+  const recall={id:`RC-${String(nextR++).padStart(3,'0')}`,date:today(),lot,med,reason,active:true,patientActions:{},actionNotes:'',actionDate:'',actionBy:''};
   DB.recalls.push(recall);
   sbSaveRecall(recall);
   save();renderAlerts();updateStats();updateBadge();
   ['rc-lot','rc-med','rc-reason'].forEach(id=>document.getElementById(id).value='');
   toast(`Recall flagged: Lot ${lot}`);
   sendRecallAlert(lot,med,reason);
+  showRecallImpact(recall.id);
+}
+}
+let activeRecallImpactId=null;
+
+function showRecallImpact(recallId){
+  const r=DB.recalls.find(x=>x.id===recallId);if(!r)return;
+  activeRecallImpactId=recallId;
+  if(!r.patientActions)r.patientActions={};
+  const checklist=CONFIG.recallChecklist||[];
+  const affected=DB.entries.filter(e=>e.lot.trim().toLowerCase()===r.lot.trim().toLowerCase());
+  const seen=new Set();
+  const patients=affected.filter(e=>{const k=e.patientMrn||e.id;if(seen.has(k))return false;seen.add(k);return true;})
+    .map(e=>({key:e.patientMrn||e.id,mrn:e.patientMrn||'—',date:e.date,dr:e.dr}));
+  const total=patients.length*checklist.length;
+  const done=patients.reduce((acc,p)=>{const a=r.patientActions[p.key]||{};return acc+checklist.filter(i=>a[i]?.done).length;},0);
+  document.getElementById('rim-title').textContent='🚨 Lot '+r.lot+' — Recall Response';
+  document.getElementById('rim-sub').textContent=(r.med||'Unknown')+' · Filed '+fmtD(r.date)+' · '+done+'/'+total+' actions complete';
+  const rimPt=document.getElementById('rim-patients');
+  if(!patients.length){
+    rimPt.innerHTML='<p style="color:var(--muted);font-size:13px;padding:12px 0">No dispensing entries found for this lot.</p>';
+  } else {
+    const headerCols=checklist.map(item=>'<th style="text-align:center;font-size:10px;max-width:90px;white-space:normal;line-height:1.3;padding:8px 4px">'+item+'</th>').join('');
+    const bodyRows=patients.map(p=>{
+      const actions=r.patientActions[p.key]||{};
+      const allDone=checklist.every(item=>actions[item]?.done);
+      const checkCols=checklist.map(item=>{
+        const a=actions[item];
+        const safeKey=p.key.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        const safeItem=item.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        return '<td style="text-align:center;padding:6px 4px;border-bottom:1px solid var(--border)"><label style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer"><input type="checkbox" '+(a&&a.done?'checked':'')+' onchange="toggleRecallCheck(\''+recallId+'\',\''+safeKey+'\',\''+safeItem+'\',this.checked)" style="width:16px;height:16px;cursor:pointer"/>'+(a&&a.done?'<span style="font-size:9px;color:var(--muted)">'+a.by+'<br>'+fmtD(a.date)+'</span>':'')+'</label></td>';
+      }).join('');
+      return '<tr style="'+(allDone?'background:#f0fdf4':'')+'"><td style="padding:8px 10px;border-bottom:1px solid var(--border);font-family:monospace;font-weight:600">'+p.mrn+'</td><td style="padding:8px 10px;border-bottom:1px solid var(--border)">'+fmtD(p.date)+'</td><td style="padding:8px 10px;border-bottom:1px solid var(--border)">'+p.dr+'</td>'+checkCols+'<td style="text-align:center;padding:8px 6px;border-bottom:1px solid var(--border)">'+(allDone?'<span class="badge ok">✓ Done</span>':'<span class="badge warn">Pending</span>')+'</td></tr>';
+    }).join('');
+    rimPt.innerHTML='<div class="tbl-wrap"><table><thead><tr><th>Patient MRN</th><th>Date</th><th>Physician</th>'+headerCols+'<th style="text-align:center">Status</th></tr></thead><tbody>'+bodyRows+'</tbody></table></div><div style="font-size:12px;color:var(--muted);margin-top:8px">'+done+'/'+total+' actions complete · '+patients.length+' patient'+(patients.length===1?'':'s')+'</div>';
+  }
+  const existingEl=document.getElementById('rim-existing-action');
+  const actionEl=document.getElementById('rim-action');
+  if(r.actionNotes){existingEl.style.display='block';existingEl.innerHTML='<strong>✓ Notes saved</strong> by '+(r.actionBy||'?')+' on '+fmtD(r.actionDate)+':<br><span style="white-space:pre-wrap">'+r.actionNotes+'</span>';actionEl.value=r.actionNotes;}
+  else{existingEl.style.display='none';actionEl.value='';}
+  const modal=document.getElementById('recall-impact-modal');
+  modal.style.display='flex';
+  modal.onclick=ev=>{if(ev.target===modal)closeRecallImpact();};
 }
 
+function closeRecallImpact(){
+  document.getElementById('recall-impact-modal').style.display='none';
+  activeRecallImpactId=null;
+}
+
+function toggleRecallCheck(recallId,patientKey,item,checked){
+  const r=DB.recalls.find(x=>x.id===recallId);if(!r)return;
+  if(!r.patientActions)r.patientActions={};
+  if(!r.patientActions[patientKey])r.patientActions[patientKey]={};
+  const by=sessionStorage.getItem('sessionStaff')||'?';
+  if(checked){r.patientActions[patientKey][item]={done:true,by,date:today()};}
+  else{delete r.patientActions[patientKey][item];}
+  sbSaveRecall(r);save();
+  const checklist=CONFIG.recallChecklist||[];
+  const affected=DB.entries.filter(e=>e.lot.trim().toLowerCase()===r.lot.trim().toLowerCase());
+  const seen=new Set();
+  const patients=affected.filter(e=>{const k=e.patientMrn||e.id;if(seen.has(k))return false;seen.add(k);return true;});
+  const total=patients.length*checklist.length;
+  const done=patients.reduce((acc,e)=>{const k=e.patientMrn||e.id;const a=r.patientActions[k]||{};return acc+checklist.filter(i=>a[i]?.done).length;},0);
+  document.getElementById('rim-sub').textContent=(r.med||'Unknown')+' · Filed '+fmtD(r.date)+' · '+done+'/'+total+' actions complete';
+}
+
+function saveRecallAction(){
+  if(!activeRecallImpactId)return;
+  const notes=document.getElementById('rim-action').value.trim();
+  if(!notes){alert('Please enter notes before saving.');return;}
+  const r=DB.recalls.find(x=>x.id===activeRecallImpactId);if(!r)return;
+  const by=sessionStorage.getItem('sessionStaff')||'?';
+  r.actionNotes=notes;r.actionDate=today();r.actionBy=by;
+  sbSaveRecall(r);
+  const auditRec={ts:new Date().toISOString(),action:'recall-action',id:r.id,field:'actionNotes',before:'—',after:notes,by};
+  DB.auditLog.unshift(auditRec);sbSaveAudit(auditRec);
+  save();
+  const existingEl=document.getElementById('rim-existing-action');
+  existingEl.style.display='block';
+  existingEl.innerHTML='<strong>✓ Notes saved</strong> by '+by+' on '+fmtD(today())+':<br><span style="white-space:pre-wrap">'+notes+'</span>';
+  renderAlerts();toast('Response saved for '+r.id);
+}
 function resolveRecall(id){
   const r=DB.recalls.find(x=>x.id===id);
   if(r){r.active=false;sbSaveRecall(r);save();renderAlerts();updateStats();updateBadge();}
@@ -1327,7 +1445,7 @@ DB.entries.forEach(e=>{
   if(!DB.recalls.length){rcEl.innerHTML='<p style="font-size:12px;color:var(--muted)">No recalls logged.</p>';return;}
   rcEl.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>ID</th><th>Date</th><th>Lot #</th><th>Medication</th><th>Reason</th><th>Affected MRNs</th><th>Status</th><th class="no-print"></th></tr></thead><tbody>${DB.recalls.map(r=>{
     const affected=[...new Set(DB.entries.filter(e=>e.lot.trim().toLowerCase()===r.lot.trim().toLowerCase()&&e.patientMrn).map(e=>e.patientMrn))];
-    return`<tr><td style="font-family:monospace;font-size:11px">${r.id}</td><td>${fmtD(r.date)}</td><td style="font-family:monospace;font-size:11px">${r.lot}</td><td>${r.med||'—'}</td><td>${r.reason||'—'}</td><td style="font-family:monospace;font-size:11px">${affected.length?affected.join(', '):'None logged'}</td><td><span class="badge ${r.active?'danger':'ok'}">${r.active?'Active':'Resolved'}</span></td><td class="no-print" style="white-space:nowrap">${r.active?`<button class="btn btn-sm btn-ghost" onclick="exportRecallMRNs('${r.lot.replace(/'/g,"\\'")}')">Export MRNs</button> <button class="btn btn-sm btn-success" onclick="resolveRecall('${r.id}')">Resolve</button>`:''}</td></tr>`;
+    return`<tr><td style="font-family:monospace;font-size:11px">${r.id}</td><td>${fmtD(r.date)}</td><td style="font-family:monospace;font-size:11px">${r.lot}</td><td>${r.med||'—'}</td><td>${r.reason||'—'}</td><td style="font-family:monospace;font-size:11px">${affected.length?affected.join(', '):'None logged'}</td><td><span class="badge ${r.active?'danger':'ok'}">${r.active?'Active':'Resolved'}</span></td><td class="no-print" style="white-space:nowrap"><button class="btn btn-sm btn-ghost" onclick="showRecallImpact('${r.id}')">View Impact & Checklist</button> ${r.active?`<button class="btn btn-sm btn-ghost" onclick="exportRecallMRNs('${r.lot.replace(/'/g,"\\'")}')">Export MRNs</button> <button class="btn btn-sm btn-success" onclick="resolveRecall('${r.id}')">Resolve</button>`:''} ${r.actionNotes?'<span class="badge ok" style="margin-left:4px">✓ Notes saved</span>':''}
   }).join('')}</tbody></table></div>`;
 }
 
