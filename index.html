@@ -977,8 +977,8 @@ function showStatModal(type){
   } else {
     tbody.innerHTML=entries.map(e=>{
       const rc=isRecalled(e.lot);
-      const canEd=canEditEntry(e.staff);
-      const canDel=canDeleteEntry();
+const canEd=canEditEntry(e.staff);
+const canDel=canDeleteEntry();
       const ptCount=e.patientMrn?DB.entries.filter(x=>x.patientMrn&&x.patientMrn.trim().toLowerCase()===e.patientMrn.trim().toLowerCase()&&new Date(x.date)>=cutoff6m).length:0;
       return`<tr style="${rc?'background:#fef9c3':ptCount>CONFIG.sampleLimitCount?'background:#fdf2f8':''}">
         <td style="padding:7px 10px;border-bottom:1px solid var(--border)">${fmtD(e.date)}</td>
