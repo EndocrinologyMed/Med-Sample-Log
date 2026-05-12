@@ -1582,6 +1582,15 @@ function renderAlerts(){
     patients.forEach(function(k){var a=(r.patientActions||{})[k]||{};checklist.forEach(function(i){if(a[i]&&a[i].done)done++;});});
     al.push({cls:'danger',icon:'&#128680;',title:'RECALL ACTIVE: '+(r.med||'Medication')+' -- Lot '+r.lot,sub:(r.reason||'No reason')+' -- '+cnt+' entr'+(cnt===1?'y':'ies')+' -- Filed '+fmtD(r.date)+' -- '+done+'/'+total+' actions complete',rcId:r.id,rcLot:r.lot});
   });
+  // Monthly inventory check reminder (admins only, first Tuesday)
+if(currentRole()==='admin'&&isFirstTuesdayOfMonth()){
+  var reminderKey='inv_reminder_dismissed_'+today();
+  if(!localStorage.getItem(reminderKey)){
+    al.push({cls:'warn',icon:'&#128197;',title:'Monthly inventory check due today',
+      sub:'Today is the first Tuesday of the month -- time to run the spot check.',
+      reminderKey:reminderKey});
+  }
+}
   overLimitPatients().forEach(function(p){al.push({cls:'warn',icon:'&#9888;',title:'Over '+CONFIG.sampleLimitDays+'-day sample limit: MRN '+p.mrn,sub:p.count+' samples in past '+CONFIG.sampleLimitDays+' days (limit: '+CONFIG.sampleLimitCount+')'});});
   (DB.fdaRecalls||[]).filter(function(r){return !r.dismissed;}).forEach(function(r){
     var cls=r.classification||'',severity=cls.includes('I')?'danger':'warn';
@@ -1596,6 +1605,8 @@ function renderAlerts(){
     if(a.fdaNum)btns+='<button class="btn btn-sm btn-danger no-print" onclick="flagFDAAsRecall(\''+a.fdaNum.replace(/'/g,"\\'")+'\')">Flag</button> <button class="btn btn-sm btn-ghost no-print" onclick="dismissFDA(\''+a.fdaNum.replace(/'/g,"\\'")+'\')">Dismiss</button>';
     if(a.disposeBtn)btns+=' <button class="btn btn-sm btn-danger no-print" onclick="openDisposalForLot(\''+a.disposeBtn.lot.replace(/'/g,"\\'")+'\',\''+a.disposeBtn.med.replace(/'/g,"\\'")+'\')">Record Disposal</button>';
     if(a.snoozeKey)btns+=' <button class="btn btn-sm btn-ghost no-print" onclick="snoozeAlert(\''+a.snoozeKey.replace(/'/g,"\\'")+'\')">Snooze today</button>';
+    if(a.reminderKey)btns+=' <button class="btn btn-sm btn-ghost no-print" onclick="localStorage.setItem(\''+a.reminderKey+'\',\'1\');renderAlerts();updateBadge();">Dismiss</button>'+
+  ' <button class="btn btn-sm btn-primary no-print" onclick="showTab(\'invcheck\')">Start Check</button>';
     return'<div class="alert-item '+a.cls+'"><div class="alert-icon">'+a.icon+'</div><div class="alert-content"><div class="alert-title">'+a.title+'</div><div class="alert-sub">'+a.sub+'</div></div><div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap">'+btns+'</div></div>';
   }).join('');}
   // Recall history
@@ -1832,6 +1843,19 @@ function flagFDAAsRecall(n){
   var lot=(prompt('Enter the lot number to flag:\n\n'+(r.lots||'Check FDA notice'))||'').trim();if(!lot)return;
   DB.recalls.push({id:'RC-'+String(nextR++).padStart(3,'0'),date:today(),lot:lot,med:r.product.slice(0,60),reason:'FDA recall '+r.recall_number+' -- '+r.reason.slice(0,120),active:true,patientActions:{},actionNotes:'',actionDate:'',actionBy:''});
   r.dismissed=true;save();renderAlerts();updateStats();updateBadge();toast('Recall flagged: Lot '+lot);
+}
+  function isFirstTuesdayOfMonth(){
+  var d=new Date();
+  return d.getDay()===2&&d.getDate()<=7;
+}
+function checkInventoryReminder(initials){
+  var role=CONFIG.roles[initials]||'readonly';
+  if(role!=='admin')return;
+  if(!isFirstTuesdayOfMonth())return;
+  var key='inv_reminder_dismissed_'+today();
+  if(localStorage.getItem(key))return;
+  // Add to alerts
+  if(!DB._invReminder)DB._invReminder=true;
 }
 function startFDAPoller(){var last=parseInt(localStorage.getItem('fdaLastCheck')||'0');if(Date.now()-last>3600000)checkFDA(false);setInterval(function(){checkFDA(false);},3600000);}
 function fdaClassBadge(cls){if(!cls)return'';if(cls.includes('I'))return' <span class="badge danger">Class I</span>';if(cls.includes('II'))return' <span class="badge warn">Class II</span>';return' <span class="badge info">'+cls+'</span>';}
