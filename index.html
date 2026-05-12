@@ -1382,7 +1382,7 @@ function renderInventory(){
         '<td class="no-print" style="white-space:nowrap;display:flex;gap:4px;flex-wrap:wrap;padding:6px 8px">'+
         '<button class="btn btn-ghost btn-sm" onclick="editStockIn(\''+i.id+'\')" style="'+( canInv?"":"opacity:.35;cursor:not-allowed")+'">Edit</button>'+
         (canDispose?' <button class="btn btn-success btn-sm" onclick="fillDisposalFromInventory(\''+i.lot+'\',\''+i.med.replace(/\'/g,"\\\'")+'\')">Dispose</button>':"")+
-        (canInv?' <button class="btn btn-danger btn-sm" onclick="deleteStockIn(\''+i.id+'\')" title="Permanently remove from inventory">Remove</button>':"")+
+        (canInv?' <button class="btn btn-danger btn-sm" onclick="deleteStockIn(\''+i.id+'\')" style="'+(canInv?'':'opacity:.35;cursor:not-allowed')+'" title="'+(canInv?'Remove from inventory':'Admin only')+'">Remove</button>'+
         '</td></tr>';
     });
   });
