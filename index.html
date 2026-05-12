@@ -1314,7 +1314,7 @@ function renderInventory(){
     var lbl=row.rem<=0?'Out of stock':row.cls==='warn'?'Low stock':'In stock';
     var barColor=row.rem<=0?'#ef4444':row.cls==='warn'?'#f59e0b':'#22c55e';
     row.d.lots.forEach(function(i){
-      var safeNotesInv=encodeURIComponent('Lot: '+i.lot+'\nMedication: '+i.med+'\nLocation: '+(i.rep||'--')+'\nExpiry: '+(i.exp||'--'));html+='<tr data-notes="'+safeNotesInv+'" onmouseenter="showNoteTooltip(event,decodeURIComponent(this.getAttribute(\'data-notes\')))" onmouseleave="hideNoteTooltip()" style="'+(isRecalled(i.lot)?'background:#fef9c3':'')+'">';+
+      var safeNotesInv=encodeURIComponent('Lot: '+i.lot+'\nMedication: '+i.med+'\nLocation: '+(i.rep||'--')+'\nExpiry: '+(i.exp||'--'));html+='<tr data-notes="'+safeNotesInv+'" onmouseenter="showNoteTooltip(event,decodeURIComponent(this.getAttribute(\'data-notes\')))" onmouseleave="hideNoteTooltip()" style="'+(isRecalled(i.lot)?'background:#fef9c3':'')+'">';
         '<td style="font-family:monospace;font-size:10px;color:var(--muted)">'+(i.id||'--')+'</td>'+
         '<td style="font-weight:600">'+i.med+(isRecalled(i.lot)?' <span class="badge recall-badge">RECALL</span>':'')+'</td>'+
         '<td style="font-family:monospace;font-size:11px">'+i.lot+'</td>'+
