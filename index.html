@@ -1001,7 +1001,7 @@ function submitLogin(){
   document.getElementById('login-loading').style.display='block';
   loadFromSupabase().then(function(){
     if(!DB.disposals)DB.disposals=[];if(!DB.inventoryChecks)DB.inventoryChecks=[];
-    populateMedLists();renderTable();updateStats();updateBadge();renderRecentLots();renderDisposals();
+    populateMedLists();renderTable();updateStats();updateBadge();renderRecentLots();renderDisposals();renderInventory();
     renderPersonalBanner(initials);
     startFDAPoller();setInterval(pollSupabase,30000);_flushWriteQueue();_sbBadge();
     startSessionTimer(CONFIG.sessionTimeoutMinutes||15);
