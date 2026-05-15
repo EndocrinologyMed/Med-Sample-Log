@@ -144,6 +144,7 @@ tr:hover td{background:#f0f5ff}
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
     <button onclick="toggleConfig()" style="display:none;cursor:pointer;font-size:12px;padding:4px 10px;border-radius:var(--radius)" class="session-sel" id="config-btn">&#9881; Config</button>
     <button onclick="openPrefs()" id="prefs-btn" style="display:none;cursor:pointer;font-size:12px;padding:4px 10px;border-radius:var(--radius)" class="session-sel">&#9965; Preferences</button>
+    <button onclick="refreshData()" id="refresh-btn" style="display:none;cursor:pointer;font-size:12px;padding:4px 10px;border-radius:var(--radius)" class="session-sel" title="Refresh data">&#8635; Refresh</button>
     <div id="sync-badge" style="font-size:11px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:3px 10px;display:none">&#8987; <span id="sync-count">0</span> queued</div>
     <div id="sync-dot" title="connecting" style="width:9px;height:9px;border-radius:50%;background:#fbbf24;flex-shrink:0"></div>
     <div style="font-size:12px;opacity:.8;text-align:right">
@@ -1077,6 +1078,7 @@ function signOut(){
   document.getElementById('hdr-signout-btn').style.display='none';
   document.getElementById('timeout-sel').style.display='none';
   document.getElementById('prefs-btn').style.display='none';
+  document.getElementById('refresh-btn').style.display='none';
   var configBtn=document.getElementById('config-btn');if(configBtn)configBtn.style.display='none';
   document.body.classList.remove('dark','compact','fs-sm','fs-md','fs-lg');document.body.classList.add('fs-md');
   document.documentElement.style.removeProperty('--accent');document.documentElement.style.removeProperty('--accent-lt');document.documentElement.style.removeProperty('--accent-dk');document.documentElement.style.removeProperty('--blue');document.documentElement.style.removeProperty('--blue-lt');document.documentElement.style.removeProperty('--blue-dk');
@@ -1856,6 +1858,19 @@ function checkInventoryReminder(initials){
   if(localStorage.getItem(key))return;
   // Add to alerts
   if(!DB._invReminder)DB._invReminder=true;
+}
+  async function refreshData(){
+  var btn=document.getElementById('refresh-btn');
+  if(btn){btn.textContent='⌛ Loading...';btn.disabled=true;}
+  await loadFromSupabase();
+  if(!DB.disposals)DB.disposals=[];if(!DB.inventoryChecks)DB.inventoryChecks=[];
+  populateMedLists();renderTable();updateStats();updateBadge();renderRecentLots();renderDisposals();renderInventory();
+  renderPersonalBanner(sessionStaff());
+  if(document.getElementById('tab-alerts').classList.contains('active'))renderAlerts();
+  if(document.getElementById('tab-reports').classList.contains('active')){renderReports();renderLeaderboard();}
+  if(document.getElementById('tab-invcheck').classList.contains('active'))renderInvCheckHistory();
+  if(btn){btn.textContent='↻ Refresh';btn.disabled=false;}
+  toast('Data refreshed');
 }
 function startFDAPoller(){var last=parseInt(localStorage.getItem('fdaLastCheck')||'0');if(Date.now()-last>3600000)checkFDA(false);setInterval(function(){checkFDA(false);},3600000);}
 function fdaClassBadge(cls){if(!cls)return'';if(cls.includes('I'))return' <span class="badge danger">Class I</span>';if(cls.includes('II'))return' <span class="badge warn">Class II</span>';return' <span class="badge info">'+cls+'</span>';}
