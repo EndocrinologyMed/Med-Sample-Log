@@ -996,6 +996,7 @@ function submitLogin(){
   document.getElementById('hdr-signout-btn').style.display='inline';
   document.getElementById('timeout-sel').style.display='inline';
   document.getElementById('prefs-btn').style.display='inline';
+  document.getElementById('refresh-btn').style.display='inline';
   var configBtn=document.getElementById('config-btn');if(configBtn)configBtn.style.display=initials==='OB'?'inline':'none';
   applyRoleRestrictions(initials);
   var prefs=loadUserPrefs(initials);applyPrefs(prefs,initials);
