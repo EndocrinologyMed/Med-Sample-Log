@@ -627,6 +627,7 @@ var CONFIG = {
   sampleLimitCount: 3,
   sampleLimitDays: 180,
   expiryWarnDays: 30,
+  defaultLowStockThreshold: 5,
   sessionTimeoutMinutes: 15,
   recallChecklist: [
     'Patient contacted','Advised to stop use','Medication retrieved',
@@ -1576,7 +1577,14 @@ function renderAlerts(){
     else if(d<=CONFIG.expiryWarnDays){if(isSnoozed(snoozeKey))return;al.push({cls:'warn',icon:'&#9200;',title:'Expiring in '+d+' day'+(d===1?'':'s')+': '+e.med,sub:'Lot '+e.lot+' -- Entry '+e.id,snoozeKey:snoozeKey});}
   });
   var inv=computeInv(),byMedRem={};inv.forEach(function(i){if(!byMedRem[i.med])byMedRem[i.med]=0;byMedRem[i.med]+=i.received-i.dispensed;});
-  Object.entries(DB.settings.thresholds).forEach(function(e){var rem=byMedRem[e[0]]||0;if(rem<=e[1]){var sk='low:'+e[0];if(isSnoozed(sk))return;al.push({cls:'warn',icon:'&#128230;',title:'Low stock: '+e[0],sub:rem+' units remaining -- threshold '+e[1],snoozeKey:sk});}});
+  Object.keys(byMedRem).forEach(function(med){
+  var rem=byMedRem[med];
+  var thresh=DB.settings.thresholds[med]!==undefined?DB.settings.thresholds[med]:CONFIG.defaultLowStockThreshold;
+  if(rem<=thresh&&rem>0){
+    var sk='low:'+med;if(isSnoozed(sk))return;
+    al.push({cls:'warn',icon:'&#128230;',title:'Low stock: '+med,sub:rem+' unit'+(rem===1?'':'s')+' remaining -- threshold '+thresh,snoozeKey:sk});
+  }
+});
   DB.recalls.filter(function(r){return r.active;}).forEach(function(r){
     var cnt=DB.entries.filter(function(e){return e.lot.trim().toLowerCase()===r.lot.trim().toLowerCase();}).length;
     var checklist=CONFIG.recallChecklist||[],seen={},patients=[];
