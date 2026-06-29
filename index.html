@@ -2832,7 +2832,7 @@ function init(){
   // Storage locations
   ['si-rep','sie-rep'].forEach(function(id){var el=document.getElementById(id);if(!el)return;CONFIG.storageLocations.forEach(function(loc){var o=document.createElement('option');o.value=loc;o.textContent=loc;el.appendChild(o);});});
   // Staff dropdowns
-  var staffEls=[document.getElementById('f-staff'),document.getElementById('session-staff'),document.getElementById('sie-staff'),document.getElementById('login-initials'),document.getElementById('invcheck-staff'),document.getElementById('invcheck-witness')];
+  var staffEls=[document.getElementById('f-staff'),document.getElementById('session-staff'),document.getElementById('sie-staff'),document.getElementById('login-initials'),document.getElementById('invcheck-staff'),document.getElementById('invcheck-witness'),document.getElementById('dp-staff'),document.getElementById('sc-counter-a'),document.getElementById('sc-counter-b')];
   STAFF_LIST.forEach(function(s){staffEls.forEach(function(el){if(!el)return;var o=document.createElement('option');o.value=s;o.textContent=s+' -- '+(CONFIG.staffNames[s]||'');el.appendChild(o);});});
   // Seed med datalists
   ['ml1','ml2','ml3','ml4'].forEach(function(id){var dl=document.getElementById(id);if(!dl)return;MEDS.forEach(function(m){var o=document.createElement('option');o.value=m.name;dl.appendChild(o);});});
