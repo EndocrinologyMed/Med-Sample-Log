@@ -983,6 +983,15 @@ async function sbSaveThresholds(){await sbWrite('settings','upsert',{key:'thresh
 function save(){localStorage.setItem('endo_db2',JSON.stringify(DB));localStorage.setItem('endo_ids2',JSON.stringify({e:nextE,s:nextS,r:nextR}));}
 async function pollSupabase(){
   if(!_sbReady||!navigator.onLine)return;
+  // Flush any queued (unsynced) local writes first -- otherwise the fetch below
+  // will overwrite local state and any not-yet-synced entries will vanish.
+  var pending=JSON.parse(localStorage.getItem('sb_write_queue')||'[]');
+  if(pending.length)await _flushWriteQueue();
+  // If writes are still queued after the flush attempt (still offline/failing),
+  // skip this poll entirely -- pulling "official" server state now would wipe
+  // out local items that haven't synced yet.
+  var stillPending=JSON.parse(localStorage.getItem('sb_write_queue')||'[]');
+  if(stillPending.length)return;
   try{
     var res=await Promise.all([
       _db.from('log_entries').select('*').order('created_at',{ascending:false}),
