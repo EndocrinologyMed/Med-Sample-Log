@@ -725,6 +725,7 @@ tr:hover td{background:#f0f5ff}
         The audit trail is always preserved.
       </div>
       <button class="btn btn-sm btn-danger" onclick="clearAllInventoryData()" style="white-space:nowrap;flex-shrink:0">&#128465; Clear all log data</button>
+      <button class="btn btn-sm btn-danger" onclick="clearInventoryOnly()" style="white-space:nowrap;flex-shrink:0">&#128465; Clear inventory only</button>
     </div>
     <div style="padding:16px 20px">
       <div class="tbl-wrap">
@@ -2721,7 +2722,24 @@ function clearAllInventoryData(){
     alert('Error clearing Supabase: '+err.message+'\n\nLocal data was cleared. You may need to clear Supabase tables manually.');
   });
 }
-
+function clearInventoryOnly(){
+  if(currentRole()!=='admin'){toast('Admin only.');return;}
+  var answer=window.prompt('This permanently deletes all inventory RECEIPTS (stock-in records) only.\n\nYour dispensing log, disposal history, and audit trail are NOT affected.\n\nType CLEAR to confirm:');
+  if((answer||'').trim()!=='CLEAR'){toast('Cancelled — nothing was changed.');return;}
+  if(!confirm('Last chance: permanently delete all inventory/stock-in records? Dispensing log stays intact.'))return;
+  DB.stockIn=[];
+  nextS=1;
+  save();
+  _db.from('stock_in').delete().not('id','is',null).then(function(){
+    var ar={ts:new Date().toISOString(),action:'inv-delete',id:'RESET-INV',field:'all stock-in records',
+      before:'all inventory receipts',after:'wiped by '+(CONFIG.staffNames[sessionStaff()]||sessionStaff()),by:sessionStaff()};
+    DB.auditLog.unshift(ar);sbSaveAudit(ar);save();
+    renderInventory();renderRecentLots();populateMedLists();updateStats();updateBadge();
+    toast('Inventory cleared. Dispensing log and audit trail preserved. Enter your current stock below.');
+  }).catch(function(err){
+    alert('Error clearing Supabase: '+err.message);
+  });
+}
 function openInitInventory(){
   requirePin(function(){
     _initRows = [];
