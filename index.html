@@ -2809,7 +2809,7 @@ async function submitInitInventory(){
       notes:'Initial inventory load',addedBy:sessionStaff()};
     DB.stockIn.unshift(entry);
     existingNames.push(med);
-    await sbWrite('stock_in','insert',entry);
+    await sbSaveStockIn(entry);
   }
   var ar={ts:new Date().toISOString(),action:'add',id:'INIT',field:'initial inventory',
     before:'--',after:valid.length+' lots entered as initial inventory by '+(CONFIG.staffNames[sessionStaff()]||sessionStaff()),by:sessionStaff()};
