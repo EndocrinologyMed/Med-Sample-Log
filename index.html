@@ -845,7 +845,7 @@ var CONFIG = {
   expiryWarnDays: 30,
   defaultLowStockThreshold: 5,
   sessionTimeoutMinutes: 15,
-  inventoryBaselineDate: null,
+  inventoryBaselineDate: '2026-08-12',
   recallChecklist: [
     'Patient contacted','Advised to stop use','Medication retrieved',
     'Replacement provided','Medication disposed'
@@ -1725,21 +1725,16 @@ function computeInv(){
   var baseline=CONFIG.inventoryBaselineDate||null;
   DB.stockIn.forEach(function(s){var k=s.med+'|'+s.lot;if(!map[k])map[k]={id:s.id,med:s.med,lot:s.lot,exp:s.exp,unit:s.unit,rep:s.rep||'',received:0,dispensed:0};map[k].received+=s.qtyReceived;if(s.rep)map[k].rep=s.rep;});
   DB.entries.forEach(function(e){
-    if(baseline&&e.date<baseline)return; // ignore dispensing before the baseline date
+    if(baseline&&e.date<baseline)return;
     var k=e.med+'|'+e.lot;if(map[k])map[k].dispensed+=e.qty;
   });
-  // Also count disposals as removed from inventory
   (DB.disposals||[]).forEach(function(d){
-    if(baseline&&d.date<baseline)return; // ignore disposals before the baseline date
+    if(baseline&&d.date<baseline)return;
     var k=d.med+'|'+d.lot;
     if(map[k]){map[k].dispensed+=d.qty;}
     else{
-      // Try matching by lot only in case med name differs slightly
       Object.keys(map).forEach(function(mk){if(mk.split('|')[1]===d.lot)map[mk].dispensed+=d.qty;});
     }
-  });
-  return Object.values(map).sort(function(a,b){return a.med.localeCompare(b.med);});
-}
   });
   return Object.values(map).sort(function(a,b){return a.med.localeCompare(b.med);});
 }
