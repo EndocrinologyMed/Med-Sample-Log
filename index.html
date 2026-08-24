@@ -2584,7 +2584,6 @@ function renderConfigEditorUI(){
   document.getElementById('cfg-session-timeout').value=CONFIG.sessionTimeoutMinutes;
   document.getElementById('cfg-inv-baseline').value=CONFIG.inventoryBaselineDate||'';
 }
-}
 function renderCfgProviders(){
   var el=document.getElementById('cfg-providers-list');if(!el)return;
   el.innerHTML=CONFIG.providers.map(function(p,i){
