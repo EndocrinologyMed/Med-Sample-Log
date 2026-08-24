@@ -689,6 +689,7 @@ tr:hover td{background:#f0f5ff}
           <div class="field"><label>Expiry warning (days out)</label><input id="cfg-expiry-warn" type="number" min="1" max="180"/><span style="font-size:11px;color:var(--muted)">Warn when a lot expires within N days</span></div>
           <div class="field"><label>Default low stock threshold</label><input id="cfg-low-stock" type="number" min="0" max="999"/><span style="font-size:11px;color:var(--muted)">Alert when units at or below this</span></div>
           <div class="field"><label>Session timeout (minutes)</label><input id="cfg-session-timeout" type="number" min="0" max="480"/><span style="font-size:11px;color:var(--muted)">0 = no auto sign-out</span></div>
+          <div class="field"><label>Inventory baseline date</label><input id="cfg-inv-baseline" type="date"/><span style="font-size:11px;color:var(--muted)">Dispensing/disposals before this date won't count against current stock -- use after a reset</span></div>
         </div>
       </div>
       <div id="cfg-tab-checklist" class="cfg-tab-panel" style="display:none">
@@ -844,6 +845,7 @@ var CONFIG = {
   expiryWarnDays: 30,
   defaultLowStockThreshold: 5,
   sessionTimeoutMinutes: 15,
+  inventoryBaselineDate: null,
   recallChecklist: [
     'Patient contacted','Advised to stop use','Medication retrieved',
     'Replacement provided','Medication disposed'
@@ -1720,16 +1722,24 @@ function addStockIn(){
 }
 function computeInv(){
   var map={};
+  var baseline=CONFIG.inventoryBaselineDate||null;
   DB.stockIn.forEach(function(s){var k=s.med+'|'+s.lot;if(!map[k])map[k]={id:s.id,med:s.med,lot:s.lot,exp:s.exp,unit:s.unit,rep:s.rep||'',received:0,dispensed:0};map[k].received+=s.qtyReceived;if(s.rep)map[k].rep=s.rep;});
-  DB.entries.forEach(function(e){var k=e.med+'|'+e.lot;if(map[k])map[k].dispensed+=e.qty;});
+  DB.entries.forEach(function(e){
+    if(baseline&&e.date<baseline)return; // ignore dispensing before the baseline date
+    var k=e.med+'|'+e.lot;if(map[k])map[k].dispensed+=e.qty;
+  });
   // Also count disposals as removed from inventory
   (DB.disposals||[]).forEach(function(d){
+    if(baseline&&d.date<baseline)return; // ignore disposals before the baseline date
     var k=d.med+'|'+d.lot;
     if(map[k]){map[k].dispensed+=d.qty;}
     else{
       // Try matching by lot only in case med name differs slightly
       Object.keys(map).forEach(function(mk){if(mk.split('|')[1]===d.lot)map[mk].dispensed+=d.qty;});
     }
+  });
+  return Object.values(map).sort(function(a,b){return a.med.localeCompare(b.med);});
+}
   });
   return Object.values(map).sort(function(a,b){return a.med.localeCompare(b.med);});
 }
@@ -2536,6 +2546,7 @@ function applyClinicConfig(cfg){
   if(cfg.expiryWarnDays!==undefined)CONFIG.expiryWarnDays=cfg.expiryWarnDays;
   if(cfg.defaultLowStockThreshold!==undefined)CONFIG.defaultLowStockThreshold=cfg.defaultLowStockThreshold;
   if(cfg.sessionTimeoutMinutes!==undefined)CONFIG.sessionTimeoutMinutes=cfg.sessionTimeoutMinutes;
+  if(cfg.inventoryBaselineDate!==undefined)CONFIG.inventoryBaselineDate=cfg.inventoryBaselineDate;
   if(cfg.recallChecklist&&cfg.recallChecklist.length)CONFIG.recallChecklist=cfg.recallChecklist;
   if(cfg.staff&&cfg.staff.length){CONFIG.staff=cfg.staff;STAFF_LIST=cfg.staff;}
   if(cfg.staffNames&&Object.keys(cfg.staffNames).length)CONFIG.staffNames=cfg.staffNames;
@@ -2576,6 +2587,8 @@ function renderConfigEditorUI(){
   document.getElementById('cfg-expiry-warn').value=CONFIG.expiryWarnDays;
   document.getElementById('cfg-low-stock').value=CONFIG.defaultLowStockThreshold;
   document.getElementById('cfg-session-timeout').value=CONFIG.sessionTimeoutMinutes;
+  document.getElementById('cfg-inv-baseline').value=CONFIG.inventoryBaselineDate||'';
+}
 }
 function renderCfgProviders(){
   var el=document.getElementById('cfg-providers-list');if(!el)return;
@@ -2681,11 +2694,13 @@ async function saveClinicConfig(){
   CONFIG.expiryWarnDays=parseInt(document.getElementById('cfg-expiry-warn').value)||30;
   CONFIG.defaultLowStockThreshold=parseInt(document.getElementById('cfg-low-stock').value)||5;
   CONFIG.sessionTimeoutMinutes=parseInt(document.getElementById('cfg-session-timeout').value)||15;
+  CONFIG.inventoryBaselineDate=document.getElementById('cfg-inv-baseline').value||null;
   var cfg={providers:CONFIG.providers,storageLocations:CONFIG.storageLocations,
     sampleLimitCount:CONFIG.sampleLimitCount,sampleLimitDays:CONFIG.sampleLimitDays,
     expiryWarnDays:CONFIG.expiryWarnDays,defaultLowStockThreshold:CONFIG.defaultLowStockThreshold,
     sessionTimeoutMinutes:CONFIG.sessionTimeoutMinutes,recallChecklist:CONFIG.recallChecklist,
-    staff:CONFIG.staff,staffNames:CONFIG.staffNames,roles:CONFIG.roles,userPins:CONFIG.userPins};
+    staff:CONFIG.staff,staffNames:CONFIG.staffNames,roles:CONFIG.roles,userPins:CONFIG.userPins,
+    inventoryBaselineDate:CONFIG.inventoryBaselineDate};
   await sbWrite('settings','upsert',{key:'clinic_config',value:cfg});
   var ar={ts:new Date().toISOString(),action:'config-edit',id:'CONFIG',field:'clinic_config',before:'--',after:'Config updated by '+sessionStaff(),by:sessionStaff()};
   DB.auditLog.unshift(ar);sbSaveAudit(ar);
