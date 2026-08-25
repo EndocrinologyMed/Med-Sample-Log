@@ -1855,8 +1855,9 @@ function saveStockInEdit(){
 function disposalLotFill(val){
   var v=val.trim().toLowerCase(),src=null;
   for(var i=0;i<DB.stockIn.length;i++){if(DB.stockIn[i].lot.trim().toLowerCase()===v){src=DB.stockIn[i];break;}}
-  if(src)document.getElementById('dp-med').value=src.med||'';
-  document.getElementById('dp-lot').value=src.lot;
+  if(src){
+    document.getElementById('dp-med').value=src.med||'';
+    document.getElementById('dp-lot').value=src.lot;
   }
 }
 function addDisposal(){
