@@ -1463,6 +1463,7 @@ function lotAutofill(val){
     ['ip-med','ip-brand','ip-exp','ip-rep'].forEach(function(id){document.getElementById(id).value='';});document.getElementById('ip-qty').value=10;return;
   }
   lotKnown=true;errEl.classList.add('hidden');panel.classList.add('hidden');
+  document.getElementById('f-lot').value=src.lot;
   document.getElementById('f-med').value=src.med||src.name||'';document.getElementById('f-brand').value=src.brand||'';
   document.getElementById('f-rep').value=src.rep||'';document.getElementById('f-exp').value=src.exp||'';
   if(src.unit)document.getElementById('f-unit').value=src.unit;
@@ -1723,17 +1724,24 @@ function addStockIn(){
 function computeInv(){
   var map={};
   var baseline=CONFIG.inventoryBaselineDate||null;
-  DB.stockIn.forEach(function(s){var k=s.med+'|'+s.lot;if(!map[k])map[k]={id:s.id,med:s.med,lot:s.lot,exp:s.exp,unit:s.unit,rep:s.rep||'',received:0,dispensed:0};map[k].received+=s.qtyReceived;if(s.rep)map[k].rep=s.rep;});
+  DB.stockIn.forEach(function(s){
+    var k=(s.med+'|'+s.lot).trim().toLowerCase();          // was: s.med+'|'+s.lot
+    if(!map[k])map[k]={id:s.id,med:s.med,lot:s.lot,exp:s.exp,unit:s.unit,rep:s.rep||'',received:0,dispensed:0};
+    map[k].received+=s.qtyReceived;if(s.rep)map[k].rep=s.rep;
+  });
   DB.entries.forEach(function(e){
     if(baseline&&e.date<baseline)return;
-    var k=e.med+'|'+e.lot;if(map[k])map[k].dispensed+=e.qty;
+    var k=(e.med+'|'+e.lot).trim().toLowerCase();           // was: e.med+'|'+e.lot
+    if(map[k])map[k].dispensed+=e.qty;
   });
   (DB.disposals||[]).forEach(function(d){
     if(baseline&&d.date<baseline)return;
-    var k=d.med+'|'+d.lot;
+    var k=(d.med+'|'+d.lot).trim().toLowerCase();           // was: d.med+'|'+d.lot
     if(map[k]){map[k].dispensed+=d.qty;}
     else{
-      Object.keys(map).forEach(function(mk){if(mk.split('|')[1]===d.lot)map[mk].dispensed+=d.qty;});
+      Object.keys(map).forEach(function(mk){
+        if(mk.split('|')[1]===d.lot.trim().toLowerCase())map[mk].dispensed+=d.qty;   // normalize this compare too
+      });
     }
   });
   return Object.values(map).sort(function(a,b){return a.med.localeCompare(b.med);});
@@ -1848,6 +1856,8 @@ function disposalLotFill(val){
   var v=val.trim().toLowerCase(),src=null;
   for(var i=0;i<DB.stockIn.length;i++){if(DB.stockIn[i].lot.trim().toLowerCase()===v){src=DB.stockIn[i];break;}}
   if(src)document.getElementById('dp-med').value=src.med||'';
+  document.getElementById('dp-lot').value=src.lot;
+  }
 }
 function addDisposal(){
   if(currentRole()==='readonly'){denyMsg('record disposals');return;}
