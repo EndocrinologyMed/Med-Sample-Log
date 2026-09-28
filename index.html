@@ -234,7 +234,7 @@ tr:hover td{background:#f0f5ff}
         <div class="field"><label>Expiration <span class="req">*</span></label><input id="ip-exp" type="date"/></div>
         <div class="field"><label>Qty received <span class="req">*</span></label><input id="ip-qty" type="number" min="1" value="10"/></div>
         <div class="field"><label>Unit</label><select id="ip-unit"><option>bottle</option><option>pen</option><option>vial</option><option>box</option><option>tablet</option><option>patch</option><option>kit</option></select></div>
-        <div class="field"><label>Rep / manufacturer</label><input id="ip-rep" placeholder="e.g. Novo Nordisk"/></div>
+        <div class="field"><label>Storage location <span class="req">*</span></label><select id="ip-rep"><option value="">-- select --</option></select></div>
       </div>
       <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
         <button class="btn btn-ghost btn-sm" onclick="dismissIntake()">Cancel</button>
@@ -429,7 +429,8 @@ tr:hover td{background:#f0f5ff}
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-ghost no-print" onclick="startInventoryCheck(false)" title="Count all active lots">Full Check</button>
-        <button class="btn btn-primary no-print" onclick="startInventoryCheck(true)">&#127922; Spot Check (60 lots)</button>
+        <button class="btn btn-ghost no-print" onclick="startInventoryCheck(true)">&#127922; Spot Check (60 lots)</button>
+        <button class="btn btn-primary no-print" onclick="openStartCheckModal()">&#128101; Start Monthly Check</button>
       </div>
     </div>
     <div class="tbl-bar no-print" style="margin-bottom:10px"><input id="invcheck-search" placeholder="Search by ID, date, or staff name..." oninput="renderInvCheckHistory()" style="max-width:360px"/></div>
@@ -924,18 +925,18 @@ async function loadFromSupabase(){
     if(thresh)DB.settings.thresholds=thresh.value||{};
     var clinicConf=(res[5].data||[]).find(function(x){return x.key==='clinic_config';});
     if(clinicConf&&clinicConf.value){applyClinicConfig(clinicConf.value);repopulateDropdowns();}
+    // 1) Load this device's cached FDA recalls first...
+    try{var _ldb=JSON.parse(localStorage.getItem('endo_db2')||'{}');if(_ldb.fdaRecalls&&_ldb.fdaRecalls.length)DB.fdaRecalls=_ldb.fdaRecalls;}catch(e){}
+    if(!DB.fdaRecalls)DB.fdaRecalls=[];
+    // 2) ...then apply the shared dismissed list from Supabase on top, so a dismissal on any device wins
     var dismissedFDA=(res[5].data||[]).find(function(x){return x.key==='dismissed_fda_recalls';});
     if(dismissedFDA&&Array.isArray(dismissedFDA.value)){
-      var dList=dismissedFDA.value;
-      if(!DB.fdaRecalls)DB.fdaRecalls=[];
-      dList.forEach(function(n){
+      dismissedFDA.value.forEach(function(n){
         var existing=DB.fdaRecalls.find(function(r){return r.recall_number===n;});
         if(existing){existing.dismissed=true;}
         else{DB.fdaRecalls.push({recall_number:n,dismissed:true,fetched:'',product:'',reason:'',firm:'',classification:'',lots:'',status:''});}
       });
     }
-    // Restore fdaRecalls from localStorage — they're not in Supabase, dismissed state must persist
-    try{var _ldb=JSON.parse(localStorage.getItem('endo_db2')||'{}');if(_ldb.fdaRecalls&&_ldb.fdaRecalls.length)DB.fdaRecalls=_ldb.fdaRecalls;}catch(e){}
     try{var icRes=await _db.from('inventory_checks').select('*').order('created_at',{ascending:false});DB.inventoryChecks=icRes.data||[];}
     catch(e){console.warn('inventory_checks table missing -- create it in Supabase.');DB.inventoryChecks=[];}
     if(DB.entries.length)nextE=Math.max.apply(null,DB.entries.map(function(x){return parseInt((x.id||'').replace('MS-',''))||0;}))+1;
@@ -979,7 +980,7 @@ async function sbWrite(table,method,data){
 }
 async function sbSaveEntry(e){await sbWrite('log_entries','upsert',{id:e.id,date:e.date,time:e.time,med:e.med,brand:e.brand||null,lot:e.lot,exp:e.exp||null,qty:e.qty,unit:e.unit,dr:e.dr,rep:e.rep||null,staff:e.staff,patient_mrn:e.patientMrn||null,notes:e.notes||null,edit_history:e.editHistory||[]});}
 async function sbDeleteEntry(id){await sbWrite('log_entries','delete',{id:id});}
-async function sbSaveStockIn(s){await sbWrite('stock_in','upsert',{id:s.id,date:s.date,med:s.med,lot:s.lot,exp:s.exp||null,qty_received:s.qtyReceived,unit:s.unit,location:s.rep||null});}
+async function sbSaveStockIn(s){await sbWrite('stock_in','upsert',{id:s.id,date:s.date,med:s.med,lot:s.lot,exp:s.exp||null,qty_received:s.qtyReceived,unit:s.unit,location:s.rep||null,brand:s.brand||null});}
 async function sbDeleteStockIn(id){await sbWrite('stock_in','delete',{id:id});}
 async function sbSaveRecall(r){await sbWrite('recalls','upsert',{id:r.id,date:r.date,lot:r.lot,med:r.med||null,reason:r.reason||null,active:r.active,action_notes:r.actionNotes||null,action_date:r.actionDate||null,action_by:r.actionBy||null,patient_actions:r.patientActions||null});}
 async function sbSaveAudit(l){await sbWrite('audit_log','insert',{ts:l.ts,action:l.action,entry_id:l.id,field:l.field,before_val:l.before,after_val:l.after,by_staff:l.by});}
@@ -1476,14 +1477,18 @@ function lotAutofill(val){
 }
 function dismissIntake(){document.getElementById('intake-panel').classList.add('hidden');document.getElementById('lot-error').classList.add('hidden');document.getElementById('f-lot').value='';lotKnown=false;}
 function saveIntakeAndContinue(){
+  if(currentRole()==='readonly'){denyMsg('add inventory');return;}
   var lot=document.getElementById('f-lot').value.trim(),med=document.getElementById('ip-med').value.trim();
   var exp=document.getElementById('ip-exp').value,qty=parseInt(document.getElementById('ip-qty').value)||0;
-  if(!med){alert('Medication name is required.');return;}if(!exp){alert('Expiration date is required.');return;}if(qty<1){alert('Qty must be at least 1.');return;}
-  // Normalize med name from intake panel too
+  var loc=document.getElementById('ip-rep').value;
+  if(!med){alert('Medication name is required.');return;}
+  if(!exp){alert('Expiration date is required.');return;}
+  if(qty<1){alert('Qty must be at least 1.');return;}
+  if(!loc){alert('Storage location is required.');return;}
   var existingNamesIP=[...new Set(DB.stockIn.map(function(s){return s.med;}).filter(Boolean))];
   var exactCIIP=existingNamesIP.find(function(n){return n.trim().toLowerCase()===med.trim().toLowerCase();});
   if(exactCIIP&&exactCIIP!==med){med=exactCIIP;}
-  var entry={id:'SI-'+String(nextS++).padStart(4,'0'),date:today(),med:med,lot:lot,brand:document.getElementById('ip-brand').value.trim(),exp:exp,qtyReceived:qty,unit:document.getElementById('ip-unit').value,rep:document.getElementById('ip-rep').value.trim()};
+  var entry={id:'SI-'+String(nextS++).padStart(4,'0'),date:today(),med:med,lot:lot,brand:document.getElementById('ip-brand').value.trim(),exp:exp,qtyReceived:qty,unit:document.getElementById('ip-unit').value,rep:loc};
   DB.stockIn.push(entry);sbSaveStockIn(entry);save();
   document.getElementById('intake-panel').classList.add('hidden');document.getElementById('lot-error').classList.add('hidden');
   populateMedLists();lotAutofill(lot);renderRecentLots();renderInventory();toast('Stock recorded: '+qty+'x '+med+' (Lot '+lot+')');
@@ -1802,7 +1807,7 @@ function setThreshold(){
 }
 function removeThreshold(med){
   if(currentRole()==='readonly'){denyMsg('remove thresholds');return;}
-  delete DB.settings.thresholds[med];save();renderThresholds();
+  delete DB.settings.thresholds[med];save();sbSaveThresholds();renderThresholds();toast('Threshold removed: '+med);
 }
 function renderThresholds(){
   var el=document.getElementById('thresh-list'),ents=Object.entries(DB.settings.thresholds);
@@ -2150,7 +2155,8 @@ function getLastCheckedMap(){
   return map;
 }
 
-function startInventoryCheck(isSpot){
+function startInventoryCheck(isSpot){   
+  document.getElementById('invcheck-witness').closest('.field').style.display='';
   var inv=computeInv();if(!inv.length){alert('No inventory on record to check.');return;}
   var active=inv.filter(function(i){return i.received-i.dispensed>0;});
   if(!active.length){alert('All inventory is fully dispensed.');return;}
@@ -2234,7 +2240,7 @@ function submitInventoryCheck(){
   DB.auditLog.unshift(ar);sbSaveAudit(ar);save();closeInvCheckModal();renderInvCheckHistory();renderInventory();
   toast('Check '+id+' submitted -- '+discrepancies+' discrepanc'+(discrepancies===1?'y':'ies'));
 }
-function closeInvCheckModal(){document.getElementById('invcheck-modal').style.display='none';currentCheckItems=[];}
+function closeInvCheckModal(){document.getElementById('invcheck-modal').style.display='none';currentCheckItems=[];window._activeSplitCheckId=null;window._activeSplitRole=null;}
 function renderInvCheckHistory(){
   var el=document.getElementById('invcheck-history');if(!el)return;
   var q=(document.getElementById('invcheck-search')||{value:''}).value.toLowerCase();
@@ -2329,10 +2335,22 @@ async function dismissFDA(n){
   renderAlerts();updateBadge();toast('FDA recall dismissed permanently — won\'t appear on any device');
 }
 function flagFDAAsRecall(n){
+  if(currentRole()==='readonly'){denyMsg('flag recalls');return;}
   var r=(DB.fdaRecalls||[]).find(function(x){return x.recall_number===n;});if(!r)return;
   var lot=(prompt('Enter the lot number to flag:\n\n'+(r.lots||'Check FDA notice'))||'').trim();if(!lot)return;
-  DB.recalls.push({id:'RC-'+String(nextR++).padStart(3,'0'),date:today(),lot:lot,med:r.product.slice(0,60),reason:'FDA recall '+r.recall_number+' -- '+r.reason.slice(0,120),active:true,patientActions:{},actionNotes:'',actionDate:'',actionBy:''});
-  r.dismissed=true;save();renderAlerts();updateStats();updateBadge();toast('Recall flagged: Lot '+lot);
+  var med=(r.product||'').slice(0,60);
+  var reason='FDA recall '+r.recall_number+' -- '+(r.reason||'').slice(0,120);
+  var recall={id:'RC-'+String(nextR++).padStart(3,'0'),date:today(),lot:lot,med:med,reason:reason,active:true,patientActions:{},actionNotes:'',actionDate:'',actionBy:''};
+  DB.recalls.push(recall);sbSaveRecall(recall);
+  var ar={ts:new Date().toISOString(),action:'recall-action',id:recall.id,field:'recall flagged',before:'--',after:'Lot '+lot+' flagged from FDA '+r.recall_number,by:sessionStaff()||'?'};
+  DB.auditLog.unshift(ar);sbSaveAudit(ar);
+  // Persist the dismissal to Supabase so the FDA alert doesn't return on other devices
+  r.dismissed=true;
+  var dismissedList=DB.fdaRecalls.filter(function(x){return x.dismissed;}).map(function(x){return x.recall_number;});
+  sbWrite('settings','upsert',{key:'dismissed_fda_recalls',value:dismissedList});
+  save();renderAlerts();updateStats();updateBadge();
+  toast('Recall flagged: Lot '+lot);
+  sendRecallAlert(lot,med,reason);showRecallImpact(recall.id);
 }
 async function refreshData(){
   var btn=document.getElementById('refresh-btn');
@@ -2474,7 +2492,9 @@ function openMyCountSection(){
   document.getElementById('invcheck-date-display').textContent=check.id+' -- Your section ('+currentCheckItems.length+' lots)';
   document.getElementById('invcheck-notes').value='';
   document.getElementById('invcheck-staff').value=sessionStaff();
-  window._activeSplitCheckId=check.id;window._activeSplitRole=role;
+  window._activeSplitCheckId=check.id;window._activeSplitRole=role;   
+  document.getElementById('invcheck-witness').closest('.field').style.display='none';   
+  var scb=document.getElementById('invcheck-type-badge');if(scb)scb.innerHTML='<span class="badge info">Split check</span> &nbsp;Your partner will review and co-sign this section';
   renderCheckItems();document.getElementById('invcheck-modal').style.display='flex';
 }
 function handleInvCheckSubmit(){if(window._activeSplitCheckId){submitMySection();}else{submitInventoryCheck();}}
@@ -2570,8 +2590,8 @@ function repopulateDropdowns(){
   if(drS){var cv=drS.value;drS.innerHTML='<option value="">-- select --</option>';CONFIG.providers.forEach(function(p){var o=document.createElement('option');o.value=p;o.textContent=p;drS.appendChild(o);});drS.value=cv;}
   if(drF){drF.innerHTML='<option value="">All physicians</option>';CONFIG.providers.forEach(function(p){var o=document.createElement('option');o.value=p;o.textContent=p;drF.appendChild(o);});}
   if(pp){var cv2=pp.value;pp.innerHTML='<option value="">-- no default --</option>';CONFIG.providers.forEach(function(p){var o=document.createElement('option');o.value=p;o.textContent=p;pp.appendChild(o);});pp.value=cv2;}
-  ['si-rep','sie-rep'].forEach(function(id){var el=document.getElementById(id);if(!el)return;var cv3=el.value;el.innerHTML='<option value="">-- select --</option>';CONFIG.storageLocations.forEach(function(l){var o=document.createElement('option');o.value=l;o.textContent=l;el.appendChild(o);});el.value=cv3;});
-  ['f-staff','session-staff','sie-staff','login-initials','invcheck-staff','sc-counter-a','sc-counter-b','dp-staff'].forEach(function(id){var el=document.getElementById(id);if(!el)return;var cv4=el.value;el.innerHTML='<option value="">-- select --</option>';CONFIG.staff.forEach(function(s){var o=document.createElement('option');o.value=s;o.textContent=s+' -- '+(CONFIG.staffNames[s]||'');el.appendChild(o);});el.value=cv4;});
+  ['si-rep','sie-rep','ip-rep'].forEach(function(id){var el=document.getElementById(id);if(!el)return;var cv3=el.value;el.innerHTML='<option value="">-- select --</option>';CONFIG.storageLocations.forEach(function(l){var o=document.createElement('option');o.value=l;o.textContent=l;el.appendChild(o);});el.value=cv3;});
+  ['f-staff','session-staff','sie-staff','login-initials','invcheck-staff','invcheck-witness','sc-counter-a','sc-counter-b','dp-staff'].forEach(function(id){var el=document.getElementById(id);if(!el)return;var cv4=el.value;el.innerHTML='<option value="">-- select --</option>';CONFIG.staff.forEach(function(s){var o=document.createElement('option');o.value=s;o.textContent=s+' -- '+(CONFIG.staffNames[s]||'');el.appendChild(o);});el.value=cv4;});
 }
 function openConfigEditor(){
   requirePin(function(){
