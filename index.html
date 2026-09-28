@@ -191,9 +191,9 @@ tr:hover td{background:#f0f5ff}
   <div class="stats">
     <div class="stat" onclick="showStatModal('today')"><div class="stat-label">Today's entries</div><div class="stat-val blue" id="s-today">0</div></div>
     <div class="stat" onclick="showStatModal('all')"><div class="stat-label">Total entries</div><div class="stat-val" id="s-total">0</div></div>
-    <div class="stat" onclick="showStatModal('expiring')"><div class="stat-label">Expiring &le;30d</div><div class="stat-val amber" id="s-exp">0</div></div>
+    <div class="stat" onclick="showStatModal('expiring')"><div class="stat-label" id="s-exp-label">Expiring &le;30d</div><div class="stat-val amber" id="s-exp">0</div></div>
     <div class="stat" onclick="_showTab('alerts')"><div class="stat-label">Active recalls</div><div class="stat-val red" id="s-recalls">0</div></div>
-    <div class="stat" onclick="showStatModal('overlimit')"><div class="stat-label">Over 3-sample limit</div><div class="stat-val red" id="s-limit">0</div></div>
+    <div class="stat" onclick="showStatModal('overlimit')"><div class="stat-label" id="s-limit-label">Over 3-sample limit</div><div class="stat-val red" id="s-limit">0</div></div>
   </div>
   <div class="card form-section">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
@@ -1003,10 +1003,12 @@ async function pollSupabase(){
       _db.from('log_entries').select('*').order('created_at',{ascending:false}),
       _db.from('stock_in').select('*').order('created_at',{ascending:false}),
       _db.from('disposals').select('*').order('created_at',{ascending:false}),
-      _db.from('recalls').select('*').order('created_at',{ascending:false})
+      _db.from('recalls').select('*').order('created_at',{ascending:false}),
+      _db.from('inventory_checks').select('*').order('created_at',{ascending:false})
     ]);
     DB.entries=(res[0].data||[]).map(mapEntry);DB.stockIn=(res[1].data||[]).map(mapStockIn);
     DB.disposals=res[2].data||[];DB.recalls=(res[3].data||[]).map(mapRecall);
+    if(!res[4].error&&res[4].data)DB.inventoryChecks=res[4].data;
     save();renderTable();updateStats();updateBadge();renderRecentLots();renderDisposals();
     if(document.getElementById('tab-inventory').classList.contains('active'))renderInventory();
     if(document.getElementById('tab-alerts').classList.contains('active'))renderAlerts();
@@ -1190,7 +1192,7 @@ function getPinnedLots(){var prefs=loadUserPrefs(sessionStaff());return prefs.pi
 function togglePinLot(lot){
   var prefs=loadUserPrefs(sessionStaff());if(!prefs.pinnedLots)prefs.pinnedLots=[];
   var idx=prefs.pinnedLots.indexOf(lot);
-  if(idx>=0){prefs.pinnedLots.splice(idx,1);toast('Lot unpinned');}else{prefs.pinnedLots.push(lot);toast('Lot pinned &#11088;');}
+  if(idx>=0){prefs.pinnedLots.splice(idx,1);toast('Lot unpinned');}else{prefs.pinnedLots.push(lot);toast('Lot pinned ⭐');}
   saveUserPrefsStore(sessionStaff(),prefs);renderRecentLots();
 }
 
@@ -1507,10 +1509,10 @@ function renderRecentLots(){
   c.innerHTML=stockLots.map(function(s){
     var safe=s.lot.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     var isPinned=pinned.indexOf(s.lot)>=0;
-    return'<button type="button" class="lot-chip'+(isPinned?' pinned':'')+'" onclick="pickLot(\''+safe+'\')">'+
+        return'<span class="lot-chip'+(isPinned?' pinned':'')+'" role="button" tabindex="0" onclick="pickLot(\''+safe+'\')" onkeydown="if(event.key===\'Enter\'&&event.target===this)pickLot(\''+safe+'\')">'+
       '<button type="button" class="pin-btn" onclick="event.stopPropagation();togglePinLot(\''+safe+'\')" title="'+(isPinned?'Unpin':'Pin this lot')+'">'+(isPinned?'&#11088;':'&#9734;')+'</button>'+
       '<span style="opacity:.55;font-size:10px">'+s.lot+'</span>'+s.med+
-    '</button>';
+    '</span>';
   }).join('');
 }
 function pickLot(lot){document.getElementById('f-lot').value=lot;lotAutofill(lot);}
@@ -1601,11 +1603,11 @@ function showStatModal(type){
     var inv=computeInv();
     var expiring=inv.filter(function(i){var d=daysTo(i.exp);return d>=0&&d<=CONFIG.expiryWarnDays&&(i.received-i.dispensed)>0;});
     expiring.sort(function(a,b){return daysTo(a.exp)-daysTo(b.exp);});
-    document.getElementById('stat-modal-title').textContent='Expiring Within 30 Days ('+expiring.length+' lot'+(expiring.length===1?'':'s')+')';
+    document.getElementById('stat-modal-title').textContent='Expiring Within '+CONFIG.expiryWarnDays+' Days ('+expiring.length+' lot'+(expiring.length===1?'':'s')+')';
     thead.innerHTML=['Medication','Lot #','Expiry','Days Left','Remaining','Location','Status'].map(function(h){
       return'<th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);font-size:10px;text-transform:uppercase;color:var(--muted);background:var(--bg)">'+h+'</th>';
     }).join('');
-    if(!expiring.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No lots expiring within 30 days.</td></tr>';}
+    if(!expiring.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No lots expiring within '+CONFIG.expiryWarnDays+' days.</td></tr>';}
     else{tbody.innerHTML=expiring.map(function(i){
       var d=daysTo(i.exp);var rem=i.received-i.dispensed;
       var urgency=d<=7?'background:#fee2e2':d<=14?'background:#fef3c7':'';
@@ -1664,7 +1666,7 @@ function renderTable(){
       var rc=isRecalled(e.lot),canEd=canEditEntry(e.staff);
       var ptCount=e.patientMrn?DB.entries.filter(function(x){return x.patientMrn&&x.patientMrn.trim().toLowerCase()===e.patientMrn.trim().toLowerCase()&&new Date(x.date)>=cutoff6m;}).length:0;
       var safeNotes=encodeURIComponent(e.notes||'');
-      return'<tr data-notes="'+safeNotes+'" onmouseenter="showNoteTooltip(event,decodeURIComponent(this.getAttribute(\'data-notes\')))" onmouseleave="hideNoteTooltip()" style="'+(rc?'background:#fef9c3':ptCount>3?'background:#fdf2f8':'')+'">'+
+      return'<tr data-notes="'+safeNotes+'" onmouseenter="showNoteTooltip(event,decodeURIComponent(this.getAttribute(\'data-notes\')))" onmouseleave="hideNoteTooltip()" style="'+(rc?'background:#fef9c3':ptCount>CONFIG.sampleLimitCount?'background:#fdf2f8':'')+'">'+
         '<td style="font-family:monospace;font-size:10px;color:var(--muted)">'+e.id+'</td>'+
         '<td>'+fmtD(e.date)+'</td><td style="color:var(--muted)">'+e.time+'</td>'+
         '<td style="font-weight:600">'+e.med+(rc?' <span class="badge recall-badge">RECALL</span>':'')+'</td>'+
@@ -1672,7 +1674,7 @@ function renderTable(){
         '<td>'+expBadge(e.exp)+'</td>'+
         '<td style="text-align:center">'+e.qty+' '+e.unit+'</td>'+
         '<td>'+e.dr+'</td>'+
-        '<td style="font-family:monospace;font-size:11px">'+(e.patientMrn||'--')+(ptCount>3?' <span class="badge limit-badge">'+ptCount+'</span>':'')+'</td>'+
+        '<td style="font-family:monospace;font-size:11px">'+(e.patientMrn||'--')+(ptCount>CONFIG.sampleLimitCount?' <span class="badge limit-badge">'+ptCount+'</span>':'')+'</td>'+
         '<td style="font-family:monospace;text-align:center">'+e.staff+'</td>'+
         '<td class="no-print">'+
           '<button class="btn btn-ghost btn-sm" onclick="editEntry(\''+e.id+'\')" style="margin-right:3px;'+(canEd?'':'opacity:.35;cursor:not-allowed')+'">Edit</button>'+
@@ -1686,6 +1688,8 @@ function renderTable(){
 function changePage(dir){page+=dir;renderTable();}
 function updateStats(){
   var t=today();
+  var sll=document.getElementById('s-limit-label');if(sll)sll.textContent='Over '+CONFIG.sampleLimitCount+'-sample limit';
+  var sel=document.getElementById('s-exp-label');if(sel)sel.textContent='Expiring \u2264'+CONFIG.expiryWarnDays+'d';
   document.getElementById('s-today').textContent=DB.entries.filter(function(e){return e.date===t;}).length;
   document.getElementById('s-total').textContent=DB.entries.length;
   var inv=computeInv();
@@ -2735,7 +2739,7 @@ async function saveClinicConfig(){
   repopulateDropdowns();
   updateStats();updateBadge();renderAlerts();
   var lsEl=document.getElementById('cfg-last-saved');if(lsEl)lsEl.textContent='Saved '+new Date().toLocaleTimeString();
-  if(btn){btn.textContent='&#128190; Save all changes';btn.disabled=false;}
+  if(btn){btn.innerHTML='&#128190; Save all changes';btn.disabled=false;}
   toast('Configuration saved — changes are live for all users');
 }
 
@@ -2750,7 +2754,7 @@ function clearAllInventoryData(){
   if(!confirm('Last chance: permanently delete all log entries, receipts and disposals?'))return;
   // Clear local
   DB.entries=[];DB.stockIn=[];DB.disposals=[];
-  nextID=1;nextS=1;nextD=1;
+  nextE=1;nextS=1;nextDP=1;
   save();
   // Clear Supabase tables
   Promise.all([
