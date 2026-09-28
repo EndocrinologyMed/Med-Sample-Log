@@ -776,7 +776,12 @@ tr:hover td{background:#f0f5ff}
 
 <div id="milestone-toast" class="milestone-toast"></div>
 <div id="note-tooltip"><div class="tip-label">Notes</div><div id="note-tooltip-body"></div></div>
-<div id="toast"></div>
+<div id="toast"></div> 
+<div id="update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:1000;background:#1f2937;color:#fff;padding:10px 16px;font-size:13px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.3)">   
+  &#128260; A new version of the Sample Log is available.   
+  <button onclick="applyUpdate()" style="margin-left:10px;padding:4px 12px;border-radius:6px;border:none;background:#22c55e;color:#fff;font-weight:600;cursor:pointer">Reload now</button>   
+  <span style="opacity:.7;margin-left:8px;font-size:12px">You'll need to sign in again.</span> 
+</div>
 
 <script>
 // ================================================================
@@ -881,6 +886,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
+var APP_VERSION='2026-09-28a'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -2907,7 +2913,37 @@ function _showConfig(){
   if(show){document.getElementById('cfg-physicians').innerHTML=CONFIG.providers.join('<br>');document.getElementById('cfg-staff').textContent=CONFIG.staff.join(', ');document.getElementById('cfg-limit').textContent='Max '+CONFIG.sampleLimitCount+' per '+CONFIG.sampleLimitDays+' days';document.getElementById('cfg-expiry').textContent='Warn at <= '+CONFIG.expiryWarnDays+' days';document.getElementById('cfg-meds').textContent=CONFIG.medications.length+' medications';}
 }
 
-// ── INIT ──────────────────────────────────────────────────────
+// ── APP UPDATE CHECK ────────────────────────────────────────── 
+var _updateAvailable=false; 
+function _isBusy(){   
+  if(editingId)return true;   
+  var fields=['f-lot','f-mrn','f-notes','si-lot','si-med','dp-lot','rc-lot'];   
+  if(fields.some(function(id){var el=document.getElementById(id);return el&&el.value.trim();}))return true;   
+  var modals=['invcheck-modal','cosign-modal','si-edit-modal','init-inventory-modal','config-editor-modal','recall-impact-modal','start-check-modal','prefs-modal','preset-modal','pin-modal'];   
+  return modals.some(function(id){var el=document.getElementById(id);return el&&el.style.display&&el.style.display!=='none';}); 
+} 
+async function checkForUpdate(){   
+  if(_updateAvailable)return;   
+  try{     
+    var res=await fetch(location.pathname+'?vcheck='+Date.now(),{cache:'no-store'});     
+    if(!res.ok)return;     
+    var m=(await res.text()).match(/var APP_VERSION='([0-9A-Za-z.\-]+)'/);     
+    if(!m||m[1]===APP_VERSION)return;     
+    _updateAvailable=true;     
+    if(!sessionStaff()&&!_isBusy()){location.reload();return;}     
+    document.getElementById('update-banner').style.display='block';   
+  }catch(e){} 
+} 
+  function applyUpdate(){   
+    if(_isBusy()&&!confirm('You have unsaved work open (a form, a count, or an edit). Reloading will lose it.\n\nReload anyway?'))return;   
+    location.reload(); 
+  } 
+  function startUpdateChecker(){   
+    setTimeout(checkForUpdate,60000);   
+    setInterval(checkForUpdate,5*60*1000);   
+    document.addEventListener('visibilitychange',function(){if(!document.hidden)checkForUpdate();}); 
+  }  
+  // ── INIT ──────────────────────────────────────────────────────
 function init(){
   document.getElementById('hdr-date').textContent=new Date().toLocaleDateString('en-US',{weekday:'short',month:'long',day:'numeric',year:'numeric'});
   // Physicians
@@ -2920,9 +2956,10 @@ function init(){
   STAFF_LIST.forEach(function(s){staffEls.forEach(function(el){if(!el)return;var o=document.createElement('option');o.value=s;o.textContent=s+' -- '+(CONFIG.staffNames[s]||'');el.appendChild(o);});});
   // Seed med datalists
   ['ml1','ml2','ml3','ml4'].forEach(function(id){var dl=document.getElementById(id);if(!dl)return;MEDS.forEach(function(m){var o=document.createElement('option');o.value=m.name;dl.appendChild(o);});});
-  _sbDot('#fbbf24','connecting...');
+   _sbDot('#fbbf24','connecting...');
+  startUpdateChecker();
 }
-init(); 
+init();
 
 </script>
 </body>
