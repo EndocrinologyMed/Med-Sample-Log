@@ -120,7 +120,8 @@ tr:hover td{background:#f0f5ff}
 @media print{header,nav,.btn,.form-section,.tbl-bar,.pager,.actions,.no-print,#toast,#login-screen,.milestone-toast{display:none!important}.tab{display:block!important;padding:0}.card{border:none;padding:0;margin-bottom:6px}body{font-size:11px}th,td{padding:4px 6px}.stats{grid-template-columns:repeat(4,1fr)}}
 #note-tooltip{position:fixed;z-index:500;background:#1f2937;color:#f9fafb;padding:8px 12px;border-radius:var(--radius);font-size:12px;max-width:280px;white-space:pre-wrap;word-break:break-word;pointer-events:none;display:none;box-shadow:0 4px 12px rgba(0,0,0,.3);line-height:1.5}
 #note-tooltip .tip-label{font-size:10px;text-transform:uppercase;letter-spacing:.05em;opacity:.6;margin-bottom:4px}
-#note-tooltip .tip-empty{opacity:.5;font-style:italic}
+#note-tooltip .tip-empty{opacity:.5;font-style:italic} 
+#f-lot,#si-lot,#sie-lot,#dp-lot,#rc-lot{text-transform:uppercase}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -881,7 +882,10 @@ var CONFIG = {
 // ================================================================
 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
-function pad(n){return String(n).padStart(2,'0');}
+function pad(n){return String(n).padStart(2,'0');} 
+function normLot(s){return String(s||'').trim().toUpperCase();} 
+function mrnKey(s){return String(s||'').toUpperCase().replace(/[\s\-]/g,'').replace(/^MRN/,'');} 
+function getThreshold(med){var t=DB.settings.thresholds||{};if(t[med]!==undefined)return t[med];var k=Object.keys(t).find(function(x){return x.trim().toLowerCase()===String(med||'').trim().toLowerCase();});return k!==undefined?t[k]:undefined;}
 function today(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
 function nowT(){var d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes());}
 function fmtD(s){if(!s)return'';var p=s.split('-');return p[1]+'/'+p[2]+'/'+p[0].slice(2);}
@@ -1188,9 +1192,9 @@ function renderPrefPresetsList(){
 }
 
 // ── PINNED LOTS ───────────────────────────────────────────────
-function getPinnedLots(){var prefs=loadUserPrefs(sessionStaff());return prefs.pinnedLots||[];}
+function getPinnedLots(){var prefs=loadUserPrefs(sessionStaff());return (prefs.pinnedLots||[]).map(normLot);}
 function togglePinLot(lot){
-  var prefs=loadUserPrefs(sessionStaff());if(!prefs.pinnedLots)prefs.pinnedLots=[];
+  var prefs=loadUserPrefs(sessionStaff());prefs.pinnedLots=(prefs.pinnedLots||[]).map(normLot);lot=normLot(lot);
   var idx=prefs.pinnedLots.indexOf(lot);
   if(idx>=0){prefs.pinnedLots.splice(idx,1);toast('Lot unpinned');}else{prefs.pinnedLots.push(lot);toast('Lot pinned ⭐');}
   saveUserPrefsStore(sessionStaff(),prefs);renderRecentLots();
@@ -1480,7 +1484,7 @@ function lotAutofill(val){
 function dismissIntake(){document.getElementById('intake-panel').classList.add('hidden');document.getElementById('lot-error').classList.add('hidden');document.getElementById('f-lot').value='';lotKnown=false;}
 function saveIntakeAndContinue(){
   if(currentRole()==='readonly'){denyMsg('add inventory');return;}
-  var lot=document.getElementById('f-lot').value.trim(),med=document.getElementById('ip-med').value.trim();
+  var lot=normLot(document.getElementById('f-lot').value),med=document.getElementById('ip-med').value.trim();
   var exp=document.getElementById('ip-exp').value,qty=parseInt(document.getElementById('ip-qty').value)||0;
   var loc=document.getElementById('ip-rep').value;
   if(!med){alert('Medication name is required.');return;}
@@ -1519,11 +1523,11 @@ function pickLot(lot){document.getElementById('f-lot').value=lot;lotAutofill(lot
 
 function samplesInWindow(mrn,excludeId){
   if(!mrn)return 0;var cutoff=new Date();cutoff.setDate(cutoff.getDate()-CONFIG.sampleLimitDays);
-  return DB.entries.filter(function(e){return e.patientMrn&&e.patientMrn.trim().toLowerCase()===mrn.trim().toLowerCase()&&e.id!==excludeId&&new Date(e.date)>=cutoff;}).length;
+  return DB.entries.filter(function(e){return e.patientMrn&&mrnKey(e.patientMrn)===mrnKey(mrn)&&e.id!==excludeId&&new Date(e.date)>=cutoff;}).length;
 }
 function overLimitPatients(){
   var mrns={},cutoff=new Date();cutoff.setDate(cutoff.getDate()-CONFIG.sampleLimitDays);
-  DB.entries.forEach(function(e){if(!e.patientMrn)return;var k=e.patientMrn.trim().toLowerCase();if(!mrns[k])mrns[k]={mrn:e.patientMrn,count:0};if(new Date(e.date)>=cutoff)mrns[k].count++;});
+  DB.entries.forEach(function(e){if(!e.patientMrn)return;var k=mrnKey(e.patientMrn);if(!mrns[k])mrns[k]={mrn:e.patientMrn,count:0};if(new Date(e.date)>=cutoff)mrns[k].count++;});
   return Object.values(mrns).filter(function(p){return p.count>CONFIG.sampleLimitCount;});
 }
 
@@ -1531,7 +1535,7 @@ function overLimitPatients(){
 function submitEntry(){
   if(currentRole()==='readonly'){denyMsg('add entries');return;}
   var get=function(id){return document.getElementById(id).value.trim();};
-  var data={med:get('f-med'),brand:get('f-brand'),lot:get('f-lot'),exp:document.getElementById('f-exp').value,
+  var data={med:get('f-med'),brand:get('f-brand'),lot:normLot(get('f-lot')),exp:document.getElementById('f-exp').value,
     qty:parseInt(document.getElementById('f-qty').value)||1,unit:document.getElementById('f-unit').value,
     dr:document.getElementById('f-dr').value,rep:get('f-rep'),staff:document.getElementById('f-staff').value,
     patientMrn:get('f-mrn'),notes:get('f-notes')};
@@ -1592,7 +1596,7 @@ function _deleteEntry(id){
 }
 function showStatModal(type){
   var t=today(),cutoff6m=new Date();cutoff6m.setDate(cutoff6m.getDate()-CONFIG.sampleLimitDays);
-  var overLimitMRNs=new Set(overLimitPatients().map(function(p){return p.mrn.trim().toLowerCase();}));
+  var overLimitMRNs=new Set(overLimitPatients().map(function(p){return mrnKey(p.mrn);}));
   var modal=document.getElementById('stat-modal');
   var thead=document.getElementById('stat-modal-thead');
   var tbody=document.getElementById('stat-modal-tbody');
@@ -1630,7 +1634,7 @@ function showStatModal(type){
   var titles={today:"Today's Entries",all:'All Entries',overlimit:'Over Sample Limit'};
   var entries=DB.entries.filter(function(e){
     if(type==='today')return e.date===t;
-    if(type==='overlimit')return e.patientMrn&&overLimitMRNs.has(e.patientMrn.trim().toLowerCase());
+    if(type==='overlimit')return e.patientMrn&&overLimitMRNs.has(mrnKey(e.patientMrn));
     return true;
   });
   document.getElementById('stat-modal-title').textContent=(titles[type]||'Entries')+' ('+entries.length+')';
@@ -1638,7 +1642,7 @@ function showStatModal(type){
   if(!entries.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">No entries found.</td></tr>';}
   else{tbody.innerHTML=entries.map(function(e){
     var rc=isRecalled(e.lot);
-    var ptCount=e.patientMrn?DB.entries.filter(function(x){return x.patientMrn&&x.patientMrn.trim().toLowerCase()===e.patientMrn.trim().toLowerCase()&&new Date(x.date)>=cutoff6m;}).length:0;
+    var ptCount=e.patientMrn?DB.entries.filter(function(x){return x.patientMrn&&mrnKey(x.patientMrn)===mrnKey(e.patientMrn)&&new Date(x.date)>=cutoff6m;}).length:0;
     return'<tr style="'+(rc?'background:#fef9c3':ptCount>CONFIG.sampleLimitCount?'background:#fdf2f8':'')+'">'+
       '<td style="padding:7px 10px;border-bottom:1px solid var(--border)">'+fmtD(e.date)+'</td>'+
       '<td style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--muted)">'+e.time+'</td>'+
@@ -1664,7 +1668,7 @@ function renderTable(){
     var canDel=canDeleteEntry();
     tbody.innerHTML=slice.map(function(e){
       var rc=isRecalled(e.lot),canEd=canEditEntry(e.staff);
-      var ptCount=e.patientMrn?DB.entries.filter(function(x){return x.patientMrn&&x.patientMrn.trim().toLowerCase()===e.patientMrn.trim().toLowerCase()&&new Date(x.date)>=cutoff6m;}).length:0;
+      var ptCount=e.patientMrn?DB.entries.filter(function(x){return x.patientMrn&&mrnKey(x.patientMrn)===mrnKey(e.patientMrn)&&new Date(x.date)>=cutoff6m;}).length:0;
       var safeNotes=encodeURIComponent(e.notes||'');
       return'<tr data-notes="'+safeNotes+'" onmouseenter="showNoteTooltip(event,decodeURIComponent(this.getAttribute(\'data-notes\')))" onmouseleave="hideNoteTooltip()" style="'+(rc?'background:#fef9c3':ptCount>CONFIG.sampleLimitCount?'background:#fdf2f8':'')+'">'+
         '<td style="font-family:monospace;font-size:10px;color:var(--muted)">'+e.id+'</td>'+
@@ -1715,7 +1719,7 @@ function exportCSV(){
 // ── INVENTORY ─────────────────────────────────────────────────
 function addStockIn(){
   if(currentRole()==='readonly'){denyMsg('add inventory');return;}
-  var med=document.getElementById('si-med').value.trim(),lot=document.getElementById('si-lot').value.trim();
+  var med=document.getElementById('si-med').value.trim(),lot=normLot(document.getElementById('si-lot').value);
   var exp=document.getElementById('si-exp').value,qty=parseInt(document.getElementById('si-qty').value)||0,loc=document.getElementById('si-rep').value;
   if(!med||!lot||!exp||qty<1||!loc){alert('Please fill all required fields including Storage Location.');return;}
   // Normalize medication name -- auto-correct case mismatches, warn on close-but-different names
@@ -1769,7 +1773,7 @@ function renderInventory(){
   var allReps=[...new Set(Object.values(byMed).map(function(d){return d.rep;}).filter(Boolean))].sort();
   var repSel=document.getElementById('inv-rep');
   if(repSel){var cur=repSel.value;repSel.innerHTML='<option value="">All locations</option>'+allReps.map(function(r){return'<option value="'+r+'"'+(r===cur?' selected':'')+'>'+r+'</option>';}).join('');}
-  var rows=Object.entries(byMed).map(function(en){var med=en[0],d=en[1];var rem=d.rx-d.dx;var thresh=DB.settings.thresholds[med]||0;var cls=rem<=0?'danger':rem<=thresh&&thresh>0?'warn':'ok';return{med:med,d:d,rem:rem,cls:cls};});
+  var rows=Object.entries(byMed).map(function(en){var med=en[0],d=en[1];var rem=d.rx-d.dx;var thresh=getThreshold(med)||0;var cls=rem<=0?'danger':rem<=thresh&&thresh>0?'warn':'ok';return{med:med,d:d,rem:rem,cls:cls};});
   if(q)rows=rows.filter(function(r){return r.med.toLowerCase().includes(q)||r.d.lots.some(function(l){return l.lot.toLowerCase().includes(q);});});
   if(statusF)rows=rows.filter(function(r){return r.cls===statusF;});
   if(repF)rows=rows.filter(function(r){return r.d.rep===repF;});
@@ -1806,7 +1810,8 @@ function renderInventory(){
 }
 function setThreshold(){
   if(currentRole()==='readonly'){denyMsg('set thresholds');return;}
-  var med=document.getElementById('thresh-med').value.trim(),val=parseInt(document.getElementById('thresh-val').value)||0;if(!med)return;
+  var med=document.getElementById('thresh-med').value.trim(),val=parseInt(document.getElementById('thresh-val').value)||0;if(!med)return;   
+    var exM=[...new Set(DB.stockIn.map(function(s){return s.med;}).filter(Boolean))].find(function(n){return n.trim().toLowerCase()===med.toLowerCase();});if(exM)med=exM;
   DB.settings.thresholds[med]=val;save();sbSaveThresholds();renderThresholds();toast('Threshold set: '+med+' -> '+val);
 }
 function removeThreshold(med){
@@ -1850,7 +1855,7 @@ function closeSiEditModal(){document.getElementById('si-edit-modal').style.displ
 function saveStockInEdit(){
   if(!editingStockId)return;var idx=DB.stockIn.findIndex(function(x){return x.id===editingStockId;});if(idx<0)return;
   var staff=document.getElementById('sie-staff').value;if(!staff){alert('Please select your initials.');return;}
-  var med=document.getElementById('sie-med').value.trim(),lot=document.getElementById('sie-lot').value.trim();
+  var med=document.getElementById('sie-med').value.trim(),lot=normLot(document.getElementById('sie-lot').value);
   var exp=document.getElementById('sie-exp').value,qty=parseInt(document.getElementById('sie-qty').value)||0;
   var unit=document.getElementById('sie-unit').value,rep=document.getElementById('sie-rep').value;
   if(!med||!lot||!exp||qty<1||!rep){alert('Please fill all required fields.');return;}
@@ -1939,7 +1944,7 @@ function renderAlerts(){
   var inv=computeInv(),byMedRem={};inv.forEach(function(i){if(!byMedRem[i.med])byMedRem[i.med]=0;byMedRem[i.med]+=i.received-i.dispensed;});
   Object.keys(byMedRem).forEach(function(med){
     var rem=byMedRem[med];
-    var thresh=DB.settings.thresholds[med]!==undefined?DB.settings.thresholds[med]:CONFIG.defaultLowStockThreshold;
+    var thresh=getThreshold(med);if(thresh===undefined)thresh=CONFIG.defaultLowStockThreshold;
     if(rem<=thresh&&rem>0){var sk='low:'+med;if(isSnoozed(sk))return;
       al.push({cls:'warn',icon:'&#128230;',title:'Low stock: '+med,sub:rem+' unit'+(rem===1?'':'s')+' remaining -- threshold '+thresh,snoozeKey:sk});}
   });
@@ -2152,7 +2157,7 @@ function getLastCheckedMap(){
   var map={};
   (DB.inventoryChecks||[]).forEach(function(c){
     (c.items||[]).forEach(function(i){
-      var k=i.lot;
+      var k=normLot(i.lot);
       if(!map[k]||c.date>map[k])map[k]=c.date;
     });
   });
@@ -2341,7 +2346,7 @@ async function dismissFDA(n){
 function flagFDAAsRecall(n){
   if(currentRole()==='readonly'){denyMsg('flag recalls');return;}
   var r=(DB.fdaRecalls||[]).find(function(x){return x.recall_number===n;});if(!r)return;
-  var lot=(prompt('Enter the lot number to flag:\n\n'+(r.lots||'Check FDA notice'))||'').trim();if(!lot)return;
+  var lot=normLot(prompt('Enter the lot number to flag:\n\n'+(r.lots||'Check FDA notice')));if(!lot)return;
   var med=(r.product||'').slice(0,60);
   var reason='FDA recall '+r.recall_number+' -- '+(r.reason||'').slice(0,120);
   var recall={id:'RC-'+String(nextR++).padStart(3,'0'),date:today(),lot:lot,med:med,reason:reason,active:true,patientActions:{},actionNotes:'',actionDate:'',actionBy:''};
@@ -2855,7 +2860,7 @@ async function submitInitInventory(){
     var exactCI=existingNames.find(function(n){return n.trim().toLowerCase()===med.trim().toLowerCase();});
     if(exactCI)med=exactCI;
     var id='SI-'+String(nextS++).padStart(4,'0');
-    var entry={id:id,date:today(),med:med,lot:r.lot.trim(),brand:r.brand.trim(),exp:r.exp,
+    var entry={id:id,date:today(),med:med,lot:normLot(r.lot),brand:r.brand.trim(),exp:r.exp,
       qtyReceived:parseInt(r.qty),unit:r.unit.trim()||'unit',rep:r.loc,
       notes:'Initial inventory load',addedBy:sessionStaff()};
     DB.stockIn.unshift(entry);
