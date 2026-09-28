@@ -2502,13 +2502,14 @@ function openMyCountSection(){
   renderCheckItems();document.getElementById('invcheck-modal').style.display='flex';
 }
 function handleInvCheckSubmit(){if(window._activeSplitCheckId){submitMySection();}else{submitInventoryCheck();}}
-function submitMySection(){
+async function submitMySection(){
   var checkId=window._activeSplitCheckId,role=window._activeSplitRole;
   var check=(DB.inventoryChecks||[]).find(function(c){return c.id===checkId;});if(!check)return;
   var staff=document.getElementById('invcheck-staff').value;if(!staff){alert('Please select your initials.');return;}
   var need=currentCheckItems.filter(function(i){return i.actual!==''&&parseInt(i.actual)<i.expected&&!i.note.trim();});
   if(need.length){alert(need.length+' shortage'+(need.length===1?'':'s')+' require a note before submitting.');return;}
   var updated=currentCheckItems.map(function(i){return{med:i.med,lot:i.lot,rep:i.rep,unit:i.unit,expected:i.expected,actual:i.actual===''?null:parseInt(i.actual),note:i.note||''};});
+  try{var fr=await _db.from('inventory_checks').select('*').eq('id',checkId).single();if(fr.data)Object.assign(check,fr.data);}catch(e){}   
   if(role==='a'){check.items_a=updated;check.submitted_a=true;}else{check.items_b=updated;check.submitted_b=true;}
   if(check.submitted_a&&check.submitted_b)check.status='cosigning';
   sbSaveInvCheck(check);save();
@@ -2547,11 +2548,12 @@ function openCosignModal(){
   window._cosignCheckId=check.id;window._cosignRole=role;
   document.getElementById('cosign-modal').style.display='flex';
 }
-function submitCosign(){
+async function submitCosign(){
   var checkId=window._cosignCheckId,role=window._cosignRole;
   var check=(DB.inventoryChecks||[]).find(function(c){return c.id===checkId;});if(!check)return;
   var me=sessionStaff(),notes=document.getElementById('cosign-notes').value.trim();
   var val=me+' '+today()+(notes?' -- '+notes:'');
+  try{var fr=await _db.from('inventory_checks').select('*').eq('id',checkId).single();if(fr.data)Object.assign(check,fr.data);}catch(e){}   
   if(role==='a')check.cosign_a=val;else check.cosign_b=val;
   if(check.cosign_a&&check.cosign_b){
     check.status='complete';
