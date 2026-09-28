@@ -2903,7 +2903,7 @@ function init(){
   var drS=document.getElementById('f-dr'),drF=document.getElementById('ff-dr'),pp=document.getElementById('pref-physician');
   PHYSICIANS.forEach(function(p){[drS,drF,pp].forEach(function(s){if(!s)return;var o=document.createElement('option');o.value=p;o.textContent=p;s.appendChild(o);});});
   // Storage locations
-  ['si-rep','sie-rep'].forEach(function(id){var el=document.getElementById(id);if(!el)return;CONFIG.storageLocations.forEach(function(loc){var o=document.createElement('option');o.value=loc;o.textContent=loc;el.appendChild(o);});});
+ ['si-rep','sie-rep','ip-rep'].forEach(function(id){var el=document.getElementById(id);if(!el)return;CONFIG.storageLocations.forEach(function(loc){var o=document.createElement('option');o.value=loc;o.textContent=loc;el.appendChild(o);});});
   // Staff dropdowns
   var staffEls=[document.getElementById('f-staff'),document.getElementById('session-staff'),document.getElementById('sie-staff'),document.getElementById('login-initials'),document.getElementById('invcheck-staff'),document.getElementById('invcheck-witness'),document.getElementById('dp-staff'),document.getElementById('sc-counter-a'),document.getElementById('sc-counter-b')];
   STAFF_LIST.forEach(function(s){staffEls.forEach(function(el){if(!el)return;var o=document.createElement('option');o.value=s;o.textContent=s+' -- '+(CONFIG.staffNames[s]||'');el.appendChild(o);});});
