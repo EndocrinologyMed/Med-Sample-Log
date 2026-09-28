@@ -886,7 +886,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-09-28a'; 
+var APP_VERSION='2026-09-28b'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -1885,7 +1885,7 @@ function disposalLotFill(val){
 }
 function addDisposal(){
   if(currentRole()==='readonly'){denyMsg('record disposals');return;}
-  var lot=document.getElementById('dp-lot').value.trim(),qty=parseInt(document.getElementById('dp-qty').value)||0;
+  var lot=normLot(document.getElementById('dp-lot').value),qty=parseInt(document.getElementById('dp-qty').value)||0;
   var reason=document.getElementById('dp-reason').value,staff=document.getElementById('dp-staff').value.trim();
   if(!lot){alert('Lot number is required.');return;}if(qty<1){alert('Quantity must be at least 1.');return;}
   if(!reason){alert('Please select a reason.');return;}if(!staff){alert('Staff initials are required.');return;}
@@ -2004,7 +2004,7 @@ function renderAlerts(){
 // ── RECALLS ───────────────────────────────────────────────────
 function addRecall(){
   if(currentRole()==='readonly'){denyMsg('flag recalls');return;}
-  var lot=document.getElementById('rc-lot').value.trim();if(!lot){alert('Lot number is required.');return;}
+  var lot=normLot(document.getElementById('rc-lot').value);if(!lot){alert('Lot number is required.');return;}
   var med=document.getElementById('rc-med').value.trim(),reason=document.getElementById('rc-reason').value.trim();
   var recall={id:'RC-'+String(nextR++).padStart(3,'0'),date:today(),lot:lot,med:med,reason:reason,active:true,patientActions:{},actionNotes:'',actionDate:'',actionBy:''};
   DB.recalls.push(recall);sbSaveRecall(recall);save();renderAlerts();updateStats();updateBadge();
