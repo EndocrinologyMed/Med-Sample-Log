@@ -2996,7 +2996,7 @@ function _isBusy(){
   if(editingId)return true;   
   var fields=['f-lot','f-mrn','f-notes','si-lot','si-med','dp-lot','rc-lot'];   
   if(fields.some(function(id){var el=document.getElementById(id);return el&&el.value.trim();}))return true;   
-  var modals=['invcheck-modal','cosign-modal','si-edit-modal','init-inventory-modal','config-editor-modal','recall-impact-modal','start-check-modal','prefs-modal','preset-modal','pin-modal'];   
+  var modals=['invcheck-modal','cosign-modal','si-edit-modal','init-inventory-modal','config-editor-modal','recall-impact-modal','start-check-modal','check-setup-modal','prefs-modal','preset-modal','pin-modal'];   
   return modals.some(function(id){var el=document.getElementById(id);return el&&el.style.display&&el.style.display!=='none';}); 
 } 
 async function checkForUpdate(){   
