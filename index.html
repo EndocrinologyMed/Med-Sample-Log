@@ -218,6 +218,7 @@ tr:hover td{background:#f0f5ff}
       <div class="field"><label>Notes <span class="req" id="notes-req" style="display:none">*</span></label><input id="f-notes" placeholder="Optional"/></div>
       <div class="field"><label>&nbsp;</label><button class="btn btn-primary" id="form-submit-btn" onclick="submitEntry()" style="white-space:nowrap">+ Add entry</button></div>
     </div>
+    <div class="lot-chips" id="lot-picker" style="display:none;margin-top:8px;max-height:none"></div>
     <div class="autofill-strip" id="autofill-strip" style="display:none">
       <span>Medication: <strong id="af-med">--</strong></span>
       <span>Expiry: <strong id="af-exp">--</strong></span>
@@ -297,7 +298,8 @@ tr:hover td{background:#f0f5ff}
     <div class="card-title">Record disposal / wastage</div>
     <div class="fg">
       <div class="field"><label>Lot number <span class="req">*</span></label><input id="dp-lot" placeholder="Lot #" oninput="disposalLotFill(this.value)"/></div>
-      <div class="field"><label>Medication</label><input id="dp-med" placeholder="Auto-fills from lot"/></div>
+      <div class="field"><label>Medication</label><input id="dp-med" placeholder="Fills from location" readonly/></div>
+      <div class="field"><label>Location / item <span class="req">*</span></label><select id="dp-loc" onchange="dpLocChanged()"><option value="">-- enter lot first --</option></select><span id="dp-avail" style="font-size:11px;color:var(--muted)"></span></div>
       <div class="field"><label>Qty disposed <span class="req">*</span></label><input id="dp-qty" type="number" min="1" value="1"/></div>
       <div class="field"><label>Reason <span class="req">*</span></label><select id="dp-reason"><option value="">-- select --</option><option>Expired</option><option>Recalled</option><option>Damaged</option><option>Other</option></select></div>
       <div class="field"><label>Disposal method</label><select id="dp-method"><option>Returned to rep</option><option>Destroyed on site</option><option>Pharmacy disposal</option><option>Other</option></select></div>
@@ -322,9 +324,18 @@ tr:hover td{background:#f0f5ff}
       <input id="inv-search" placeholder="Search medication or lot number..." oninput="renderInventory()" style="flex:2;min-width:180px"/>
       <select id="inv-status" onchange="renderInventory()" style="flex:1;min-width:130px;max-width:180px"><option value="">All statuses</option><option value="ok">In stock</option><option value="warn">Low stock</option><option value="danger">Out of stock</option></select>
       <select id="inv-rep" onchange="renderInventory()" style="flex:1;min-width:130px;max-width:180px"><option value="">All locations</option></select>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap;cursor:pointer"><input type="checkbox" id="inv-show-empty" style="width:auto" onchange="renderInventory()"/> Show empty lots</label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap;cursor:pointer"><input type="checkbox" id="inv-totals-only" style="width:auto" onchange="renderInventory()"/> Totals only</label>
     </div>
     <div id="inv-container"><p style="color:var(--muted);font-size:13px;text-align:center;padding:24px">No stock records yet.</p></div>
   </div>
+  <div class="card" id="receiving-card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap">
+    <span class="card-title" style="margin-bottom:0">Receiving history</span>
+    <input id="rcv-search" placeholder="Search med, lot, staff, location..." oninput="renderReceiving()" style="max-width:260px"/>
+  </div>
+  <div id="rcv-list"></div>
+</div>
   <div class="card" id="inv-thresholds-card">
     <div class="card-title">Reorder thresholds</div>
     <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Alert fires when remaining units reach or fall below this level.</p>
@@ -407,6 +418,7 @@ tr:hover td{background:#f0f5ff}
         <option value="inv-edit">Inventory edit</option>
         <option value="inv-delete">Inventory remove</option>
         <option value="inv-check">Inventory check</option>
+        <option value="receive">Stock received</option>
       </select>
     </div>
     <div class="tbl-wrap"><table>
@@ -907,7 +919,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-09-28e'; 
+var APP_VERSION='2026-09-29c'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -917,8 +929,17 @@ function today(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)
 function nowT(){var d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes());}
 function fmtD(s){if(!s)return'';var p=s.split('-');return p[1]+'/'+p[2]+'/'+p[0].slice(2);}
 function fmtDT(iso){if(!iso)return'';return new Date(iso).toLocaleString();}
-function daysTo(exp){if(!exp)return 999;return Math.round((new Date(exp)-new Date())/86400000);}
+function daysTo(exp){if(!exp)return 999;var d=parseLocalDate(exp),t=new Date();t.setHours(0,0,0,0);return Math.round((d-t)/86400000);}
 function getTimeOfDay(){var h=new Date().getHours();if(h<12)return'Good morning';if(h<17)return'Good afternoon';return'Good evening';}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function jsq(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+function jsArg(s){return esc(jsq(s));}
+function parseLocalDate(s){if(!s)return null;var p=String(s).slice(0,10).split('-');if(p.length<3)return new Date(s);return new Date(+p[0],+p[1]-1,+p[2]);}
+// One "bucket" = one medication + one lot + one storage location
+function bucketKey(med,lot,loc){return (String(med||'').trim()+'|'+normLot(lot)+'|'+String(loc||'').trim()).toLowerCase();}
+function findBucket(key,inv){return (inv||computeInv()).find(function(b){return b.key===key;})||null;}
+function lotBuckets(lot,inv){var L=normLot(lot).toLowerCase();return (inv||computeInv()).filter(function(b){return b.lot.toLowerCase()===L;});}
+function ensureUnitOption(sel,unit){if(!sel||!unit)return;var has=[].some.call(sel.options,function(o){return o.value===unit;});if(!has){var o=document.createElement('option');o.value=unit;o.textContent=unit;sel.appendChild(o);}sel.value=unit;}
 
 var DB={entries:[],stockIn:[],recalls:[],auditLog:[],disposals:[],inventoryChecks:[],fdaRecalls:[],settings:{thresholds:{}}};
 var nextE=1,nextS=1,nextR=1,nextDP=1,nextIC=1;
@@ -933,7 +954,7 @@ var _db=supabase.createClient(_SB_URL,_SB_KEY);
 function _sbDot(c,t){var d=document.getElementById('sync-dot');if(d){d.style.background=c;d.title=t;}}
 function _sbBadge(){var q=JSON.parse(localStorage.getItem('sb_write_queue')||'[]');var b=document.getElementById('sync-badge'),c=document.getElementById('sync-count');if(b&&c){if(q.length){b.style.display='inline';c.textContent=q.length;}else b.style.display='none';}}
 function mapEntry(r){return Object.assign({},r,{patientMrn:r.patient_mrn,editHistory:r.edit_history||[]});}
-function mapStockIn(r){return Object.assign({},r,{qtyReceived:r.qty_received,rep:r.location||''});}
+function mapStockIn(r){return Object.assign({},r,{qtyReceived:r.qty_received,rep:r.location||'',receivedBy:r.received_by||''});}
 function mapAudit(r){return{ts:r.ts,action:r.action,id:r.entry_id,field:r.field,before:r.before_val,after:r.after_val,by:r.by_staff};}
 function mapRecall(r){return Object.assign({patientActions:{},actionNotes:'',actionDate:'',actionBy:''},r,{patientActions:r.patient_actions||{},actionNotes:r.action_notes||'',actionDate:r.action_date||'',actionBy:r.action_by||''});}
 
@@ -993,17 +1014,44 @@ function loadFromLocal(){
 function _queueWrite(op){var q=JSON.parse(localStorage.getItem('sb_write_queue')||'[]');q.push(op);localStorage.setItem('sb_write_queue',JSON.stringify(q));_sbDot('#f59e0b','offline');_sbBadge();}
 async function _flushWriteQueue(){
   var q=JSON.parse(localStorage.getItem('sb_write_queue')||'[]');if(!q.length){_sbBadge();return;}
-  var failed=[];
-  for(var i=0;i<q.length;i++){try{await _execWrite(q[i]);}catch(e){failed.push(q[i]);}}
-  localStorage.setItem('sb_write_queue',JSON.stringify(failed));_sbBadge();
-  if(!failed.length&&q.length)toast('Synced '+q.length+' queued write'+(q.length===1?'':'s'));
+  var failed=[],dead=[],ok=0;
+  for(var i=0;i<q.length;i++){
+    try{await _execWrite(q[i]);ok++;}
+    catch(e){q[i]._tries=(q[i]._tries||0)+1;q[i]._err=String((e&&e.message)||e);
+      if(e&&e.code&&navigator.onLine&&q[i]._tries>=5)dead.push(q[i]);else failed.push(q[i]);}
+  }
+  localStorage.setItem('sb_write_queue',JSON.stringify(failed));
+  if(dead.length){
+    var old=JSON.parse(localStorage.getItem('sb_failed_writes')||'[]');
+    localStorage.setItem('sb_failed_writes',JSON.stringify(old.concat(dead)));
+    console.error('Set aside '+dead.length+' write(s) the server keeps rejecting. Run showFailedWrites() for details.',dead);
+    toast('\u26A0 '+dead.length+' change(s) were rejected by the server and set aside. Tell an admin.',8000);
+  }
+  _sbBadge();
+  if(ok&&!failed.length)toast('Synced '+ok+' queued write'+(ok===1?'':'s'));
 }
-async function _execWrite(op){
+var OPTIONAL_COLUMNS=['received_by','witness','check_type'];
+async function _execWriteRaw(op){
   var r;
   if(op.method==='upsert'){r=await _db.from(op.table).upsert([op.data]);if(r.error)throw r.error;}
   else if(op.method==='insert'){r=await _db.from(op.table).insert([op.data]);if(r.error)throw r.error;}
   else if(op.method==='delete'){r=await _db.from(op.table).delete().eq('id',op.data.id);if(r.error)throw r.error;}
 }
+async function _execWrite(op){
+  try{await _execWriteRaw(op);}
+  catch(err){
+    var msg=String((err&&(err.message||err.details))||'');
+    var m=msg.match(/'([a-z_]+)' column/i)||msg.match(/column "?([a-z_]+)"?/i);
+    if(m&&op.data&&OPTIONAL_COLUMNS.indexOf(m[1])>=0&&(m[1] in op.data)){
+      var d=Object.assign({},op.data);delete d[m[1]];
+      console.warn('Column "'+m[1]+'" missing on '+op.table+' -- saved without it. Run the 2026-09-29 migration.');
+      return _execWrite({table:op.table,method:op.method,data:d});
+    }
+    throw err;
+  }
+}
+function showFailedWrites(){var f=JSON.parse(localStorage.getItem('sb_failed_writes')||'[]');
+  console.table(f.map(function(o){return{table:o.table,method:o.method,id:o.data&&(o.data.id||o.data.key),tries:o._tries,error:o._err};}));return f;}
 async function sbWrite(table,method,data){
   if(!navigator.onLine||!_sbReady){_queueWrite({table:table,method:method,data:data});return;}
   try{await _execWrite({table:table,method:method,data:data});}
@@ -1011,7 +1059,17 @@ async function sbWrite(table,method,data){
 }
 async function sbSaveEntry(e){await sbWrite('log_entries','upsert',{id:e.id,date:e.date,time:e.time,med:e.med,brand:e.brand||null,lot:e.lot,exp:e.exp||null,qty:e.qty,unit:e.unit,dr:e.dr,rep:e.rep||null,staff:e.staff,patient_mrn:e.patientMrn||null,notes:e.notes||null,edit_history:e.editHistory||[]});}
 async function sbDeleteEntry(id){await sbWrite('log_entries','delete',{id:id});}
-async function sbSaveStockIn(s){await sbWrite('stock_in','upsert',{id:s.id,date:s.date,med:s.med,lot:s.lot,exp:s.exp||null,qty_received:s.qtyReceived,unit:s.unit,location:s.rep||null,brand:s.brand||null});}
+async function sbSaveStockIn(s){
+  if(!s.created_at){ // brand-new receipt (loaded records always have created_at)
+    s.created_at=new Date().toISOString();
+    if(!s.receivedBy)s.receivedBy=s.addedBy||sessionStaff()||'';
+    var ar={ts:s.created_at,action:'receive',id:s.id,field:'stock received',before:'--',
+      after:s.qtyReceived+' '+(s.unit||'')+' '+s.med+' -- Lot '+normLot(s.lot)+' -- '+(s.rep||'no location')+(s.notes?' ('+s.notes+')':''),by:s.receivedBy||'?'};
+    DB.auditLog.unshift(ar);sbSaveAudit(ar);
+  }
+  await sbWrite('stock_in','upsert',{id:s.id,date:s.date,med:s.med,lot:s.lot,exp:s.exp||null,qty_received:s.qtyReceived,
+    unit:s.unit,location:s.rep||null,brand:s.brand||null,received_by:s.receivedBy||null});
+}
 async function sbDeleteStockIn(id){await sbWrite('stock_in','delete',{id:id});}
 async function sbSaveRecall(r){await sbWrite('recalls','upsert',{id:r.id,date:r.date,lot:r.lot,med:r.med||null,reason:r.reason||null,active:r.active,action_notes:r.actionNotes||null,action_date:r.actionDate||null,action_by:r.actionBy||null,patient_actions:r.patientActions||null});}
 async function sbSaveAudit(l){await sbWrite('audit_log','insert',{ts:l.ts,action:l.action,entry_id:l.id,field:l.field,before_val:l.before,after_val:l.after,by_staff:l.by});}
@@ -1019,7 +1077,7 @@ async function sbSaveDisposal(d){await sbWrite('disposals','upsert',{id:d.id,dat
 async function sbSaveThresholds(){await sbWrite('settings','upsert',{key:'thresholds',value:DB.settings.thresholds});}
 function save(){localStorage.setItem('endo_db2',JSON.stringify(DB));localStorage.setItem('endo_ids2',JSON.stringify({e:nextE,s:nextS,r:nextR}));}
 async function pollSupabase(){
-  if(!_sbReady||!navigator.onLine)return;
+  if(!_sbReady||!navigator.onLine||!sessionStaff())return;
   // Flush any queued (unsynced) local writes first -- otherwise the fetch below
   // will overwrite local state and any not-yet-synced entries will vanish.
   var pending=JSON.parse(localStorage.getItem('sb_write_queue')||'[]');
@@ -1342,7 +1400,7 @@ async function submitLogin(){
     if(!DB.disposals)DB.disposals=[];if(!DB.inventoryChecks)DB.inventoryChecks=[];
     populateMedLists();renderTable();updateStats();updateBadge();renderRecentLots();renderDisposals();
     renderPersonalBanner(initials);renderActiveCheckPanel();
-    startFDAPoller();setInterval(pollSupabase,30000);_flushWriteQueue();_sbBadge();
+    startFDAPoller();if(!window._pollTimer)window._pollTimer=setInterval(pollSupabase,30000);_flushWriteQueue();_sbBadge();
     startSessionTimer(CONFIG.sessionTimeoutMinutes||15);
     document.getElementById('login-screen').style.display='none';
   });
@@ -1478,35 +1536,61 @@ function clearForm(){
   var req=document.getElementById('notes-req');if(req)req.style.display='none';
   document.getElementById('autofill-strip').style.display='none';
   document.getElementById('intake-panel').classList.add('hidden');document.getElementById('lot-error').classList.add('hidden');
-  lotKnown=false;document.getElementById('f-staff').value=sessionStaff();var dpStaff=document.getElementById('dp-staff');if(dpStaff&&!dpStaff.value)dpStaff.value=sessionStaff();
+  lotKnown=false;_selBucket=null;clearTimeout(_lotTimer);
+  var picker=document.getElementById('lot-picker');if(picker){picker.innerHTML='';picker.style.display='none';}
+  document.getElementById('f-staff').value=sessionStaff();var dpStaff=document.getElementById('dp-staff');if(dpStaff&&!dpStaff.value)dpStaff.value=sessionStaff();
   editingId=null;document.getElementById('form-label').textContent='New entry';document.getElementById('form-submit-btn').textContent='+ Add entry';
   var prefs=loadUserPrefs(sessionStaff());if(prefs.preferredPhysician)document.getElementById('f-dr').value=prefs.preferredPhysician;
 }
 function cancelEdit(){clearForm();}
 
 var lotKnown=false;
+var _selBucket=null,_lotTimer=null;
 function lotAutofill(val){
-  var v=val.trim().toLowerCase();
-  var errEl=document.getElementById('lot-error'),strip=document.getElementById('autofill-strip'),panel=document.getElementById('intake-panel');
-  if(!v){lotKnown=false;strip.style.display='none';panel.classList.add('hidden');errEl.classList.add('hidden');return;}
-  var src=null;
-  for(var i=0;i<DB.stockIn.length;i++){if(DB.stockIn[i].lot.trim().toLowerCase()===v){src=DB.stockIn[i];break;}}
-  if(!src){for(var i=0;i<DB.entries.length;i++){if(DB.entries[i].lot.trim().toLowerCase()===v){src=DB.entries[i];break;}}}
-  if(!src){
-    lotKnown=false;strip.style.display='none';errEl.classList.remove('hidden');panel.classList.remove('hidden');
-    ['ip-med','ip-brand','ip-exp','ip-rep'].forEach(function(id){document.getElementById(id).value='';});document.getElementById('ip-qty').value=10;return;
+  var v=normLot(val),errEl=document.getElementById('lot-error'),strip=document.getElementById('autofill-strip'),
+      panel=document.getElementById('intake-panel'),picker=document.getElementById('lot-picker');
+  _selBucket=null;lotKnown=false;clearTimeout(_lotTimer);
+  picker.innerHTML='';picker.style.display='none';strip.style.display='none';panel.classList.add('hidden');errEl.classList.add('hidden');
+  if(!v)return;
+  var inv=computeInv(),all=lotBuckets(v,inv);
+  if(!all.length){
+    // Wait until typing stops before offering "record receipt"
+    _lotTimer=setTimeout(function(){
+      if(normLot(document.getElementById('f-lot').value)!==v)return;
+      errEl.textContent='Lot not in inventory';errEl.classList.remove('hidden');panel.classList.remove('hidden');
+      ['ip-med','ip-brand','ip-exp','ip-rep'].forEach(function(id){document.getElementById(id).value='';});document.getElementById('ip-qty').value=10;
+    },700);
+    return;
   }
-  lotKnown=true;errEl.classList.add('hidden');panel.classList.add('hidden');
-  document.getElementById('f-lot').value=src.lot;
-  document.getElementById('f-med').value=src.med||src.name||'';document.getElementById('f-brand').value=src.brand||'';
-  document.getElementById('f-rep').value=src.rep||'';document.getElementById('f-exp').value=src.exp||'';
-  if(src.unit)document.getElementById('f-unit').value=src.unit;
-  document.getElementById('af-med').textContent=src.med||src.name||'--';
-  document.getElementById('af-exp').textContent=src.exp?fmtD(src.exp):'--';
-  document.getElementById('af-unit').textContent=src.unit||'--';
-  document.getElementById('af-rep').textContent=src.rep||'--';
-  strip.style.display='flex';document.getElementById('f-mrn').focus();
+  var own=editingId?DB.entries.find(function(e){return e.id===editingId;}):null;
+  var avail=all.filter(function(b){var back=(own&&bucketKey(own.med,own.lot,own.rep)===b.key)?(parseInt(own.qty)||0):0;return b.remaining+back>0;});
+  if(!avail.length){
+    errEl.textContent='Lot '+v+' is used up ('+all.map(function(b){return b.rep||'no location';}).join(', ')+'). Pick another lot, or record a new receipt on the Inventory tab if more arrived.';
+    errEl.classList.remove('hidden');return;
+  }
+  if(avail.length===1){selectBucket(avail[0].key);return;}
+  picker.innerHTML='<div style="width:100%;font-size:12px;font-weight:600;color:var(--amber)">Lot '+esc(v)+' is in more than one place \u2014 tap where you took it from:</div>'+
+    avail.map(function(b){return '<button type="button" class="lot-chip" onclick="selectBucket(\''+jsArg(b.key)+'\')">'+
+      esc(b.rep||'No location')+' \u00B7 '+esc(b.med)+' \u00B7 <strong>'+b.remaining+' left</strong></button>';}).join('');
+  picker.style.display='flex';
+}
+function selectBucket(key){
+  var b=findBucket(key);if(!b)return;
+  _selBucket=b;lotKnown=true;
+  var src=DB.stockIn.find(function(s){return bucketKey(s.med,s.lot,s.rep)===key;})||{};
+  document.getElementById('f-lot').value=b.lot;
+  document.getElementById('f-med').value=b.med;document.getElementById('f-brand').value=src.brand||'';
+  document.getElementById('f-rep').value=b.rep;document.getElementById('f-exp').value=b.exp||'';
+  ensureUnitOption(document.getElementById('f-unit'),b.unit);
+  document.getElementById('af-med').textContent=b.med||'--';
+  document.getElementById('af-exp').textContent=b.exp?fmtD(b.exp):'--';
+  document.getElementById('af-unit').textContent=b.unit||'--';
+  document.getElementById('af-rep').textContent=(b.rep||'--')+' ('+b.remaining+' left)';
+  var p=document.getElementById('lot-picker');if(p){p.innerHTML='';p.style.display='none';}
+  document.getElementById('lot-error').classList.add('hidden');document.getElementById('intake-panel').classList.add('hidden');
+  document.getElementById('autofill-strip').style.display='flex';
   document.getElementById('btn-save-preset').style.display='inline';
+  document.getElementById('f-mrn').focus();
 }
 function dismissIntake(){document.getElementById('intake-panel').classList.add('hidden');document.getElementById('lot-error').classList.add('hidden');document.getElementById('f-lot').value='';lotKnown=false;}
 function saveIntakeAndContinue(){
