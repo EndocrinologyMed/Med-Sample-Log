@@ -127,6 +127,18 @@ tr:hover td{background:#f0f5ff}
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
 <body class="fs-md">
+<!-- DEVICE SIGN-IN (once per computer) -->
+<div id="device-screen" style="display:none;position:fixed;inset:0;background:#1f2937;z-index:1001;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:var(--radius-lg);padding:32px;width:90%;max-width:360px;box-shadow:0 8px 40px rgba(0,0,0,.3);text-align:center">
+    <div style="font-size:32px;margin-bottom:8px">&#128274;</div>
+    <div style="font-weight:700;font-size:17px;margin-bottom:4px">Set up this computer</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:20px">An administrator signs this computer in once. Staff then use their initials and PIN as usual.</div>
+    <div class="field" style="margin-bottom:10px;text-align:left"><label>Clinic account email</label><input id="dev-email" type="email" autocomplete="username"/></div>
+    <div class="field" style="margin-bottom:8px;text-align:left"><label>Clinic account password</label><input id="dev-pass" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')deviceSignIn()"/></div>
+    <div id="dev-error" style="font-size:12px;color:#dc2626;min-height:18px;margin-bottom:10px"></div>
+    <button class="btn btn-primary" id="dev-btn" onclick="deviceSignIn()" style="width:100%;padding:10px">Sign in this computer</button>
+  </div>
+</div>
 <!-- LOGIN SCREEN -->
 <div id="login-screen" style="position:fixed;inset:0;background:var(--accent);z-index:999;display:flex;align-items:center;justify-content:center">
   <div style="background:#fff;border-radius:var(--radius-lg);padding:36px;width:90%;max-width:340px;box-shadow:0 8px 40px rgba(0,0,0,.3);text-align:center">
@@ -919,7 +931,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-09-30c'; 
+var APP_VERSION='2026-09-30d'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -1354,7 +1366,26 @@ function startSessionTimer(minutes){
   clearTimeout(_sessionTimer);_sessionTimeoutMs=minutes>0?minutes*60000:0;
   if(_sessionTimeoutMs){['click','keydown','touchstart'].forEach(function(ev){document.addEventListener(ev,resetSessionTimer,{passive:true});});resetSessionTimer();}
 }
-
+// ── DEVICE SIGN-IN (clinic Supabase account, once per computer) ─────
+function showDeviceScreen(){var d=document.getElementById('device-screen');if(d)d.style.display='flex';}
+async function checkDeviceSession(){
+  try{var r=await _db.auth.getSession();if(r.data&&r.data.session){document.getElementById('device-screen').style.display='none';return true;}}catch(e){}
+  showDeviceScreen();return false;
+}
+async function deviceSignIn(){
+  var email=document.getElementById('dev-email').value.trim(),pass=document.getElementById('dev-pass').value;
+  var err=document.getElementById('dev-error'),btn=document.getElementById('dev-btn');err.textContent='';
+  if(!email||!pass){err.textContent='Enter the clinic email and password.';return;}
+  btn.disabled=true;btn.textContent='Signing in...';
+  var r=await _db.auth.signInWithPassword({email:email,password:pass});
+  btn.disabled=false;btn.textContent='Sign in this computer';
+  if(r.error){err.textContent='Sign-in failed: '+r.error.message;return;}
+  document.getElementById('dev-pass').value='';
+  document.getElementById('device-screen').style.display='none';
+  toast('This computer is signed in.');
+}
+async function deviceSignOut(){await _db.auth.signOut();signOut();showDeviceScreen();}
+_db.auth.onAuthStateChange(function(ev){if(ev==='SIGNED_OUT')showDeviceScreen();});
 // ── LOGIN ─────────────────────────────────────────────────────
 async function hashPin(pin){
   var enc=new TextEncoder();
@@ -1362,6 +1393,7 @@ async function hashPin(pin){
   return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
 }
 async function submitLogin(){
+  if(!(await checkDeviceSession()))return;
   var now=Date.now();
     _loginLockedUntil=Math.max(_loginLockedUntil,parseInt(localStorage.getItem('login_locked_until')||'0'));
     _loginAttempts=Math.max(_loginAttempts,parseInt(localStorage.getItem('login_attempts')||'0'));
@@ -3239,6 +3271,7 @@ function init(){
   // Seed med datalists
   ['ml1','ml2','ml3','ml4'].forEach(function(id){var dl=document.getElementById(id);if(!dl)return;MEDS.forEach(function(m){var o=document.createElement('option');o.value=m.name;dl.appendChild(o);});});
    if(!sessionStaff())localStorage.removeItem('endo_db2');
+   checkDeviceSession();
      _sbDot('#fbbf24','connecting...');
   startUpdateChecker();
 }
