@@ -931,7 +931,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-09-30e'; 
+var APP_VERSION='2026-09-30f'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -1072,7 +1072,15 @@ async function _execWrite(op){
 }
 function showFailedWrites(){var f=JSON.parse(localStorage.getItem('sb_failed_writes')||'[]');
   console.table(f.map(function(o){return{table:o.table,method:o.method,id:o.data&&(o.data.id||o.data.key),tries:o._tries,error:o._err};}));return f;}
+// Swap characters that could inject code into other computers' screens
+function cleanText(v){
+  if(typeof v==='string')return v.replace(/</g,'\u2039').replace(/>/g,'\u203A').replace(/"/g,'\u201D');
+  if(Array.isArray(v))return v.map(cleanText);
+  if(v&&typeof v==='object'){var o={};Object.keys(v).forEach(function(k){o[k]=cleanText(v[k]);});return o;}
+  return v;
+}
 async function sbWrite(table,method,data){
+  data=cleanText(data);
   if(!navigator.onLine||!_sbReady){_queueWrite({table:table,method:method,data:data});return;}
   try{await _execWrite({table:table,method:method,data:data});}
   catch(err){console.warn('write failed:',err);_queueWrite({table:table,method:method,data:data});}
@@ -2218,7 +2226,7 @@ function renderAlerts(){
   overLimitPatients().forEach(function(p){al.push({cls:'warn',icon:'&#9888;',title:'Over '+CONFIG.sampleLimitDays+'-day sample limit: MRN '+p.mrn,sub:p.count+' samples in past '+CONFIG.sampleLimitDays+' days (limit: '+CONFIG.sampleLimitCount+')'});});
   (DB.fdaRecalls||[]).filter(function(r){return !r.dismissed;}).forEach(function(r){
     var cls=r.classification||'',severity=fdaClassOf(cls)==='I'?'danger':'warn';
-    al.push({cls:severity,icon:'&#128276;',title:'FDA recall: '+(r.firm||'Unknown firm')+fdaClassBadge(cls),sub:r.product.slice(0,120)+'...',fdaNum:r.recall_number,fdaLots:r.lots});
+    al.push({cls:severity,icon:'&#128276;',title:'FDA recall: '+esc(r.firm||'Unknown firm')+fdaClassBadge(cls),sub:esc((r.product||'').slice(0,120))+'...',fdaNum:r.recall_number,fdaLots:r.lots});
   });
   var alEl=document.getElementById('alerts-list');
   if(!al.length){alEl.innerHTML='<p style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No active alerts.</p>';}
