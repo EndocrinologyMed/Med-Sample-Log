@@ -931,7 +931,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-09-30d'; 
+var APP_VERSION='2026-09-30e'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -1130,7 +1130,7 @@ emailjs.init('SvFbJcLTslZqQu68C');
 async function sendRecallAlert(lot,med,reason){
   var mrns=[...new Set(DB.entries.filter(function(e){return e.lot.trim().toLowerCase()===lot.trim().toLowerCase()&&e.patientMrn;}).map(function(e){return e.patientMrn;}))];
   try{
-    await emailjs.send('oaibasha','template_u7v4b8a',{lot:lot,med:med||'Unknown',reason:reason||'No reason',mrns:mrns.length?mrns.join(', '):'None on record',timestamp:new Date().toLocaleString()});
+    await emailjs.send('oaibasha','template_u7v4b8a',{lot:lot,med:med||'Unknown',reason:reason||'No reason',mrns:mrns.length?(mrns.length+' patient'+(mrns.length===1?'':'s')+' received this lot. For privacy, MRNs are not emailed. Open the Sample Log (Alerts & Recalls tab) to see the list.'):'No patients on record for this lot.',timestamp:new Date().toLocaleString()});
     toast('Recall alert email sent');
   }catch(err){
     console.error('EmailJS failed:',err);
@@ -1145,7 +1145,7 @@ async function sendRecallAlert(lot,med,reason){
 }
 function recallEmailBody(lot,med,reason){
   var mrns=[...new Set(DB.entries.filter(function(e){return e.lot.trim().toLowerCase()===lot.trim().toLowerCase()&&e.patientMrn;}).map(function(e){return e.patientMrn;}))];
-  return 'RECALL ALERT\n\nMedication: '+(med||'Unknown')+'\nLot #: '+lot+'\nReason: '+(reason||'No reason stated')+'\nAffected patient MRNs: '+(mrns.length?mrns.join(', '):'None on record')+'\nDate: '+new Date().toLocaleString()+'\n\nPlease take appropriate action immediately.';
+  return 'RECALL ALERT\n\nMedication: '+(med||'Unknown')+'\nLot #: '+lot+'\nReason: '+(reason||'No reason stated')+'\nAffected patients: '+(mrns.length?mrns.length+' (MRNs not included for privacy; see the Alerts & Recalls tab in the Sample Log)':'None on record')+'\nDate: '+new Date().toLocaleString()+'\n\nPlease take appropriate action immediately.';
 }
 function openRecallMailto(recallId){
   var r=DB.recalls.find(function(x){return x.id===recallId;});if(!r)return;
@@ -3241,8 +3241,8 @@ async function checkForUpdate(){
   try{     
     var res=await fetch(location.pathname+'?vcheck='+Date.now(),{cache:'no-store'});     
     if(!res.ok)return;     
-    var m=(await res.text()).match(/var APP_VERSION='([0-9A-Za-z.\-]+)'/);     
-    if(!m||m[1]===APP_VERSION)return;     
+    var m=(await res.text()).match(/var ='([0-9A-Za-z.\-]+)'/);     
+    if(!m||m[1]===)return;     
     _updateAvailable=true;     
     if(!sessionStaff()&&!_isBusy()){location.reload();return;}     
     document.getElementById('update-banner').style.display='block';   
