@@ -919,7 +919,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-09-29c'; 
+var APP_VERSION='2026-09-30a'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -2068,42 +2068,55 @@ function saveStockInEdit(){
   toast(editingStockId+' updated');
 }
 function disposalLotFill(val){
-  var v=val.trim().toLowerCase(),src=null;
-  for(var i=0;i<DB.stockIn.length;i++){if(DB.stockIn[i].lot.trim().toLowerCase()===v){src=DB.stockIn[i];break;}}
-  if(src){
-    document.getElementById('dp-med').value=src.med||'';
-    document.getElementById('dp-lot').value=src.lot;
-  }
+  var sel=document.getElementById('dp-loc'),v=normLot(val);
+  if(!v){sel.innerHTML='<option value="">-- enter lot first --</option>';dpLocChanged();return;}
+  var bs=lotBuckets(v),ok=bs.filter(function(b){return b.remaining>0;});
+  if(!bs.length)sel.innerHTML='<option value="">Lot not in inventory</option>';
+  else if(!ok.length)sel.innerHTML='<option value="">Nothing left on hand for this lot</option>';
+  else{sel.innerHTML=(ok.length>1?'<option value="">-- choose where --</option>':'')+ok.map(function(b){
+      return '<option value="'+esc(b.key)+'">'+esc((b.rep||'No location')+' \u2014 '+b.med+' ('+b.remaining+' left)')+'</option>';}).join('');
+    if(ok.length===1)sel.value=ok[0].key;}
+  dpLocChanged();
+}
+function dpLocChanged(){
+  var sel=document.getElementById('dp-loc'),b=sel&&sel.value?findBucket(sel.value):null;
+  document.getElementById('dp-med').value=b?b.med:'';
+  var a=document.getElementById('dp-avail');if(a)a.textContent=b?b.remaining+' '+(b.unit||'unit')+'(s) on hand':'';
 }
 function addDisposal(){
   if(currentRole()==='readonly'){denyMsg('record disposals');return;}
-  var lot=normLot(document.getElementById('dp-lot').value),qty=parseInt(document.getElementById('dp-qty').value)||0;
+  var qty=parseInt(document.getElementById('dp-qty').value)||0;
   var reason=document.getElementById('dp-reason').value,staff=document.getElementById('dp-staff').value.trim();
-  if(!lot){alert('Lot number is required.');return;}if(qty<1){alert('Quantity must be at least 1.');return;}
-  if(!reason){alert('Please select a reason.');return;}if(!staff){alert('Staff initials are required.');return;}
+  var key=(document.getElementById('dp-loc')||{}).value,b=key?findBucket(key):null;
+  if(!normLot(document.getElementById('dp-lot').value)){alert('Lot number is required.');return;}
+  if(!b){alert('Choose the location this lot is being removed from.');return;}
+  if(qty<1){alert('Quantity must be at least 1.');return;}
+  if(qty>b.remaining){alert('Only '+b.remaining+' '+(b.unit||'unit')+'(s) of Lot '+b.lot+' on hand in '+(b.rep||'this location')+'. You can\'t dispose more than that.');return;}
+  if(!reason){alert('Please select a reason.');return;}
+  if(!staff){alert('Staff initials are required.');return;}
   var id='DP-'+String(nextDP++).padStart(3,'0');
-  var entry={id:id,date:today(),lot:lot,med:document.getElementById('dp-med').value.trim(),qty:qty,reason:reason,method:document.getElementById('dp-method').value,staff:staff,notes:document.getElementById('dp-notes').value.trim()};
+  var entry={id:id,date:today(),lot:b.lot,med:b.med,qty:qty,reason:reason,method:document.getElementById('dp-method').value,staff:staff,notes:document.getElementById('dp-notes').value.trim(),rep:b.rep,location:b.rep};
   DB.disposals.unshift(entry);
-  var ar={ts:new Date().toISOString(),action:'disposal',id:id,field:'disposal',before:'--',after:qty+'x Lot '+lot+' -- '+reason,by:staff};
-  DB.auditLog.unshift(ar);sbSaveDisposal(entry);sbSaveAudit(ar);save();renderDisposals();renderInventory();renderAlerts();updateStats();updateBadge();
-  // Auto-dismiss the expiry alert for this lot
-  var snoozeKey='exp:'+lot+':'+entry.med;
-  var snoozed=JSON.parse(localStorage.getItem('snoozed_alerts')||'{}');
-  snoozed[snoozeKey]='dismissed';
-  localStorage.setItem('snoozed_alerts',JSON.stringify(snoozed));
+  var ar={ts:new Date().toISOString(),action:'disposal',id:id,field:'disposal',before:'--',after:qty+'x '+b.med+' Lot '+b.lot+' ('+(b.rep||'no location')+') -- '+reason,by:staff};
+  DB.auditLog.unshift(ar);sbSaveDisposal(entry);sbSaveAudit(ar);save();
+  if(qty===b.remaining){var sn=JSON.parse(localStorage.getItem('snoozed_alerts')||'{}');sn['exp:'+b.lot+':'+b.med]='dismissed';localStorage.setItem('snoozed_alerts',JSON.stringify(sn));}
   ['dp-lot','dp-med','dp-notes'].forEach(function(i){document.getElementById(i).value='';});
-  document.getElementById('dp-reason').value='';document.getElementById('dp-qty').value=1;
+  document.getElementById('dp-reason').value='';document.getElementById('dp-qty').value=1;disposalLotFill('');
+  renderDisposals();renderInventory();renderAlerts();renderRecentLots();updateStats();updateBadge();
   toast('Disposal '+id+' recorded');
 }
 function renderDisposals(){
   if(!DB.disposals)DB.disposals=[];var el=document.getElementById('disposal-list');if(!el)return;
   if(!DB.disposals.length){el.innerHTML='<p style="font-size:12px;color:var(--muted);text-align:center;padding:20px">No disposals logged.</p>';return;}
-  el.innerHTML='<div class="tbl-wrap"><table><thead><tr><th>ID</th><th>Date</th><th>Lot #</th><th>Medication</th><th>Qty</th><th>Reason</th><th>Method</th><th>Staff</th><th>Notes</th></tr></thead><tbody>'+
+  el.innerHTML='<div class="tbl-wrap"><table><thead><tr><th>ID</th><th>Date</th><th>Lot #</th><th>Medication</th><th>Location</th><th>Qty</th><th>Reason</th><th>Method</th><th>Staff</th><th>Notes</th></tr></thead><tbody>'+
     DB.disposals.map(function(d){var cls=d.reason==='Expired'?'danger':d.reason==='Recalled'?'warn':'info';
-      var safeNotesDp=encodeURIComponent(d.notes||'');return'<tr data-notes="'+safeNotesDp+'" onmouseenter="showNoteTooltip(event,decodeURIComponent(this.getAttribute(\'data-notes\')))" onmouseleave="hideNoteTooltip()"><td style="font-family:monospace;font-size:11px">'+d.id+'</td><td>'+fmtD(d.date)+'</td><td style="font-family:monospace;font-size:11px">'+d.lot+'</td><td>'+(d.med||'--')+'</td><td>'+d.qty+'</td><td><span class="badge '+cls+'">'+d.reason+'</span></td><td style="font-size:11px">'+(d.method||'--')+'</td><td style="font-family:monospace">'+d.staff+'</td><td style="font-size:11px;color:var(--muted)">'+(d.notes||'--')+'</td></tr>';
+      return '<tr data-notes="'+encodeURIComponent(d.notes||'')+'" onmouseenter="showNoteTooltip(event,decodeURIComponent(this.getAttribute(\'data-notes\')))" onmouseleave="hideNoteTooltip()">'+
+        '<td style="font-family:monospace;font-size:11px">'+esc(d.id)+'</td><td>'+esc(fmtD(d.date))+'</td><td style="font-family:monospace;font-size:11px">'+esc(d.lot)+'</td>'+
+        '<td>'+esc(d.med||'--')+'</td><td style="font-size:11px">'+esc(d.rep||d.location||'--')+'</td><td>'+esc(d.qty)+'</td>'+
+        '<td><span class="badge '+cls+'">'+esc(d.reason)+'</span></td><td style="font-size:11px">'+esc(d.method||'--')+'</td>'+
+        '<td style="font-family:monospace">'+esc(d.staff)+'</td><td style="font-size:11px;color:var(--muted)">'+esc(d.notes||'--')+'</td></tr>';
     }).join('')+'</tbody></table></div>';
 }
-
 // ── ALERT SNOOZE ─────────────────────────────────────────────
 function snoozeAlert(key){var snoozed=JSON.parse(localStorage.getItem('snoozed_alerts')||'{}');snoozed[key]=today();localStorage.setItem('snoozed_alerts',JSON.stringify(snoozed));renderAlerts();updateBadge();toast('Alert snoozed until tomorrow.');}
 function isSnoozed(key){var snoozed=JSON.parse(localStorage.getItem('snoozed_alerts')||'{}');return snoozed[key]===today()||snoozed[key]==='dismissed';}
