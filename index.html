@@ -919,7 +919,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-09-30a'; 
+var APP_VERSION='2026-09-30b'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -2141,10 +2141,11 @@ function disposeFromBucket(key){
 }
 // ── ALERTS ────────────────────────────────────────────────────
 function renderAlerts(){
-  var al=[],seenLots={};
+  var al=[],seenLots={},_alertInv=computeInv();
   DB.stockIn.forEach(function(s){
     var k=s.lot+s.med;if(seenLots[k])return;seenLots[k]=true;
-    var d=daysTo(s.exp),inv=computeInv(),item=inv.find(function(i){return i.med===s.med&&i.lot===s.lot;});
+    var d=daysTo(s.exp),rem=_alertInv.filter(function(i){return i.med===s.med&&i.lot===normLot(s.lot);}).reduce(function(t,i){return t+i.remaining;},0);
+    if(rem<=0)return;
     var rem=item?(item.received-item.dispensed):s.qtyReceived;if(rem<=0)return;
     var snoozeKey='exp:'+s.lot+':'+s.med;
     if(d<0){al.push({cls:'danger',icon:'&#9888;',title:'EXPIRED STOCK: '+s.med+' (Lot '+s.lot+')',sub:'Expired '+Math.abs(d)+' day'+(Math.abs(d)===1?'':'s')+' ago -- '+rem+' unit'+(rem===1?'':'s')+' on hand -- '+(s.rep||''),disposeBtn:{lot:s.lot,med:s.med}});}
@@ -2171,7 +2172,7 @@ function renderAlerts(){
   });
   overLimitPatients().forEach(function(p){al.push({cls:'warn',icon:'&#9888;',title:'Over '+CONFIG.sampleLimitDays+'-day sample limit: MRN '+p.mrn,sub:p.count+' samples in past '+CONFIG.sampleLimitDays+' days (limit: '+CONFIG.sampleLimitCount+')'});});
   (DB.fdaRecalls||[]).filter(function(r){return !r.dismissed;}).forEach(function(r){
-    var cls=r.classification||'',severity=cls.includes('I')?'danger':'warn';
+    var cls=r.classification||'',severity=fdaClassOf(cls)==='I'?'danger':'warn';
     al.push({cls:severity,icon:'&#128276;',title:'FDA recall: '+(r.firm||'Unknown firm')+fdaClassBadge(cls),sub:r.product.slice(0,120)+'...',fdaNum:r.recall_number,fdaLots:r.lots});
   });
   var alEl=document.getElementById('alerts-list');
@@ -2363,7 +2364,7 @@ function renderAudit(){
     var matchA=!af||l.action===af;
     return matchQ&&matchA;
   });
-  function acBadge(a){if(a==='delete')return'<span class="badge danger">delete</span>';if(a==='edit')return'<span class="badge warn">edit</span>';if(a==='inv-edit')return'<span class="badge info">inv edit</span>';if(a==='inv-delete')return'<span class="badge danger">inv remove</span>';if(a==='recall-action')return'<span class="badge info">recall</span>';if(a==='recall-email-failed')return'<span class="badge danger">email fail</span>';if(a==='disposal')return'<span class="badge warn">disposal</span>';if(a==='inv-check')return'<span class="badge info">inv check</span>';if(a==='config-edit')return'<span class="badge info">config</span>';return'<span class="badge ok">add</span>';}
+  function acBadge(a){if(a==='delete')return'<span class="badge danger">delete</span>';if(a==='edit')return'<span class="badge warn">edit</span>';if(a==='inv-edit')return'<span class="badge info">inv edit</span>';if(a==='inv-delete')return'<span class="badge danger">inv remove</span>';if(a==='recall-action')return'<span class="badge info">recall</span>';if(a==='recall-email-failed')return'<span class="badge danger">email fail</span>';if(a==='disposal')return'<span class="badge warn">disposal</span>';if(a==='inv-check')return'<span class="badge info">inv check</span>';if(a==='config-edit')return'<span class="badge info">config</span>';if(a==='receive')return'<span class="badge ok">received</span>';return'<span class="badge ok">add</span>';}
   if(!logs.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No records match your filter.</td></tr>';return;}
   tb.innerHTML=logs.map(function(l){return'<tr><td style="font-size:11px;white-space:nowrap">'+fmtDT(l.ts)+'</td><td>'+acBadge(l.action)+'</td><td style="font-family:monospace;font-size:11px">'+l.id+'</td><td style="color:var(--muted)">'+l.field+'</td><td style="font-size:11px;max-width:160px;color:var(--muted)">'+l.before+'</td><td style="font-size:11px;max-width:160px">'+l.after+'</td><td style="font-family:monospace;text-align:center">'+l.by+'</td></tr>';}).join('');
 }
