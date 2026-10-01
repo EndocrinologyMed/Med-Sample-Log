@@ -936,7 +936,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-10-01b'; 
+var APP_VERSION='2026-10-01c'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -1559,7 +1559,8 @@ document.getElementById('log-body').innerHTML='';document.getElementById('inv-co
 // ── PERMISSIONS ───────────────────────────────────────────────
 function sessionStaff(){return sessionStorage.getItem('sessionStaff')||'';}
 function currentRole(){return CONFIG.roles[sessionStaff()]||'readonly';}
-function canEditEntry(es){var r=currentRole();if(r==='admin')return true;if(r==='self')return es&&es===sessionStaff();return false;}
+function entryAgeHours(e){if(!e)return 0;var t=e.created_at?new Date(e.created_at):null;if(!t&&e.date){t=parseLocalDate(e.date);var hm=String(e.time||'00:00').split(':');t.setHours(+hm[0]||0,+hm[1]||0);}return t?(Date.now()-t)/3600000:0;}
+function canEditEntry(es,e){var r=currentRole();if(r==='admin')return true;if(r==='self')return !!es&&es===sessionStaff()&&entryAgeHours(e)<=24;return false;}
 function canDeleteEntry(){return currentRole()==='admin';}
 function canEditInventory(){return currentRole()==='admin';}
 function denyMsg(action){var who=sessionStaff();if(!who){toast('Please sign in first.');return;}var r=currentRole();if(r==='readonly')toast(who+' is read-only and cannot '+action+'.');else if(r==='self')toast(who+' can only '+(action==='delete'?'edit, not delete':action+' their own entries')+'.');}
@@ -1756,7 +1757,7 @@ function submitEntry(){
 }
 function editEntry(id){
   var e=DB.entries.find(function(x){return x.id===id;});if(!e)return;
-  if(!canEditEntry(e.staff)){denyMsg('edit');return;}
+  if(!canEditEntry(e.staff,e)){if(currentRole()==='self'&&e.staff===sessionStaff()){toast('Entries can only be edited within 24 hours. Ask an admin to make this change.');}else{denyMsg('edit');}return;}
   editingId=id;
   document.getElementById('f-med').value=e.med||'';document.getElementById('f-brand').value=e.brand||'';
   document.getElementById('f-lot').value=e.lot||'';document.getElementById('f-exp').value=e.exp||'';
@@ -1849,7 +1850,7 @@ function renderTable(){
   else{
     var canDel=canDeleteEntry();
     tbody.innerHTML=slice.map(function(e){
-      var rc=isRecalled(e.lot),canEd=canEditEntry(e.staff);
+      var rc=isRecalled(e.lot),canEd=canEditEntry(e.staff,e);
       var ptCount=e.patientMrn?DB.entries.filter(function(x){return x.patientMrn&&mrnKey(x.patientMrn)===mrnKey(e.patientMrn)&&new Date(x.date)>=cutoff6m;}).length:0;
       var safeNotes=encodeURIComponent(e.notes||'');
       return'<tr data-notes="'+safeNotes+'" onmouseenter="showNoteTooltip(event,decodeURIComponent(this.getAttribute(\'data-notes\')))" onmouseleave="hideNoteTooltip()" style="'+(rc?'background:#fef9c3':ptCount>CONFIG.sampleLimitCount?'background:#fdf2f8':'')+'">'+
