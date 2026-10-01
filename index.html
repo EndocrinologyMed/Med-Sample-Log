@@ -437,7 +437,12 @@ tr:hover td{background:#f0f5ff}
       <thead><tr><th style="width:145px">Timestamp</th><th style="width:80px">Action</th><th style="width:80px">ID</th><th style="width:130px">Field</th><th>Before</th><th>After</th><th style="width:50px">By</th></tr></thead>
       <tbody id="audit-body"></tbody>
     </table></div>
-    <p style="font-size:11px;color:var(--muted);margin-top:8px">All changes are immutable. Deletions are preserved in the audit record.</p>
+    <div class="no-print" style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
+  <button class="btn btn-ghost btn-sm" id="audit-more-btn" onclick="loadOlderAudit()">Load older records</button>
+  <button class="btn btn-ghost btn-sm" onclick="searchAllAudit()">Search full history</button>
+  <span id="audit-status" style="font-size:11px;color:var(--muted)"></span>
+</div>
+<p style="font-size:11px;color:var(--muted);margin-top:8px">All changes are immutable. Deletions are preserved in the audit record.</p>
   </div>
 </div>
 
@@ -931,7 +936,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-10-01a'; 
+var APP_VERSION='2026-10-01b'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -975,7 +980,7 @@ function _sbDot(c,t){var d=document.getElementById('sync-dot');if(d){d.style.bac
 function _sbBadge(){var q=JSON.parse(localStorage.getItem('sb_write_queue')||'[]');var b=document.getElementById('sync-badge'),c=document.getElementById('sync-count');if(b&&c){if(q.length){b.style.display='inline';c.textContent=q.length;}else b.style.display='none';}}
 function mapEntry(r){return Object.assign({},r,{patientMrn:r.patient_mrn,editHistory:r.edit_history||[]});}
 function mapStockIn(r){return Object.assign({},r,{qtyReceived:r.qty_received,rep:r.location||'',receivedBy:r.received_by||''});}
-function mapAudit(r){return{ts:r.ts,action:r.action,id:r.entry_id,field:r.field,before:r.before_val,after:r.after_val,by:r.by_staff};}
+function mapAudit(r){return{ts:r.ts,action:r.action,id:r.entry_id,field:r.field,before:r.before_val,after:r.after_val,by:r.by_staff,created_at:r.created_at};}
 function mapRecall(r){return Object.assign({patientActions:{},actionNotes:'',actionDate:'',actionBy:''},r,{patientActions:r.patient_actions||{},actionNotes:r.action_notes||'',actionDate:r.action_date||'',actionBy:r.action_by||''});}
 
 async function loadFromSupabase(){
@@ -2418,9 +2423,37 @@ function renderAudit(){
   });
   function acBadge(a){if(a==='delete')return'<span class="badge danger">delete</span>';if(a==='edit')return'<span class="badge warn">edit</span>';if(a==='inv-edit')return'<span class="badge info">inv edit</span>';if(a==='inv-delete')return'<span class="badge danger">inv remove</span>';if(a==='recall-action')return'<span class="badge info">recall</span>';if(a==='recall-email-failed')return'<span class="badge danger">email fail</span>';if(a==='disposal')return'<span class="badge warn">disposal</span>';if(a==='inv-check')return'<span class="badge info">inv check</span>';if(a==='config-edit')return'<span class="badge info">config</span>';if(a==='receive')return'<span class="badge ok">received</span>';return'<span class="badge ok">add</span>';}
   if(!logs.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No records match your filter.</td></tr>';return;}
-  tb.innerHTML=logs.map(function(l){return'<tr><td style="font-size:11px;white-space:nowrap">'+fmtDT(l.ts)+'</td><td>'+acBadge(l.action)+'</td><td style="font-family:monospace;font-size:11px">'+l.id+'</td><td style="color:var(--muted)">'+l.field+'</td><td style="font-size:11px;max-width:160px;color:var(--muted)">'+l.before+'</td><td style="font-size:11px;max-width:160px">'+l.after+'</td><td style="font-family:monospace;text-align:center">'+l.by+'</td></tr>';}).join('');
+  tb.innerHTML=logs.map(function(l){return'<tr><td style="font-size:11px;white-space:nowrap">'+esc(fmtDT(l.ts))+'</td><td>'+acBadge(l.action)+'</td><td style="font-family:monospace;font-size:11px">'+esc(l.id)+'</td><td style="color:var(--muted)">'+esc(l.field)+'</td><td style="font-size:11px;max-width:160px;color:var(--muted)" title="'+esc(l.before)+'">'+esc(l.before)+'</td><td style="font-size:11px;max-width:160px" title="'+esc(l.after)+'">'+esc(l.after)+'</td><td style="font-family:monospace;text-align:center">'+esc(l.by)+'</td></tr>';}).join('');
+  var st=document.getElementById('audit-status');if(st)st.textContent='Showing '+logs.length+' of '+DB.auditLog.length+' loaded records';
 }
-
+// ── AUDIT: older history + full search ──
+function _auditKey(l){return (l.ts||'')+'|'+(l.id||'')+'|'+(l.field||'');}
+function _mergeAudit(rows){
+  var seen={};DB.auditLog.forEach(function(l){seen[_auditKey(l)]=true;});
+  var added=0;rows.forEach(function(l){var k=_auditKey(l);if(!seen[k]){seen[k]=true;DB.auditLog.push(l);added++;}});
+  DB.auditLog.sort(function(a,b){return String(b.created_at||b.ts||'').localeCompare(String(a.created_at||a.ts||''));});
+  return added;
+}
+async function loadOlderAudit(){
+  var btn=document.getElementById('audit-more-btn');
+  var oldest=DB.auditLog.reduce(function(m,l){return l.created_at&&(!m||l.created_at<m)?l.created_at:m;},null);
+  if(!oldest){toast('Nothing older to load.');return;}
+  btn.disabled=true;btn.textContent='Loading...';
+  var r=await _db.from('audit_log').select('*').lt('created_at',oldest).order('created_at',{ascending:false}).limit(500);
+  if(r.error){btn.disabled=false;btn.textContent='Load older records';toast('Could not load older records.');return;}
+  var rows=r.data||[],n=_mergeAudit(rows.map(mapAudit));
+  if(rows.length<500){btn.textContent='All records loaded';btn.disabled=true;}else{btn.disabled=false;btn.textContent='Load older records';}
+  renderAudit();toast(n+' older record'+(n===1?'':'s')+' loaded');
+}
+async function searchAllAudit(){
+  var q=(document.getElementById('audit-search').value||'').replace(/[,()%*"\\]/g,' ').trim();
+  if(q.length<2){toast('Type at least 2 characters in the search box first.');return;}
+  var p='"*'+q+'*"';
+  var r=await _db.from('audit_log').select('*').or('entry_id.ilike.'+p+',field.ilike.'+p+',before_val.ilike.'+p+',after_val.ilike.'+p+',by_staff.ilike.'+p).order('created_at',{ascending:false}).limit(1000);
+  if(r.error){toast('Search failed.');console.warn(r.error);return;}
+  var rows=r.data||[],n=_mergeAudit(rows.map(mapAudit));
+  renderAudit();toast(rows.length+' match'+(rows.length===1?'':'es')+' in full history'+(n?' ('+n+' older ones added)':''));
+}
 // ── INVENTORY CHECK ───────────────────────────────────────────
 function remainingFor(med,lot,rep){
   var it=computeInv().find(function(i){return normLot(i.lot)===normLot(lot)&&(i.rep||'')===(rep||'')&&String(i.med).toLowerCase()===String(med).toLowerCase();});
