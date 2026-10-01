@@ -433,6 +433,8 @@ tr:hover td{background:#f0f5ff}
         <option value="inv-delete">Inventory remove</option>
         <option value="inv-check">Inventory check</option>
         <option value="receive">Stock received</option>
+          <option value="limit-override">Sample limit override</option>
+          <option value="data-gap">Data gap</option>
       </select>
     </div>
     <div class="tbl-wrap"><table>
@@ -938,7 +940,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-10-01d'; 
+var APP_VERSION='2026-10-01e'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -1738,8 +1740,9 @@ function submitEntry(){
     var avail=b.remaining+back;
     if(avail<data.qty){alert('Not enough stock. Only '+Math.max(avail,0)+' '+(b.unit||'unit')+'(s) left for Lot '+data.lot+' in '+(b.rep||'this location')+'.');return;}
   }
+  var limitOverride=0;
   if(!editingId){var prev=samplesInWindow(data.patientMrn,null);
-    if(prev>=CONFIG.sampleLimitCount&&!confirm('Sample limit: MRN '+data.patientMrn+' has '+prev+' samples in the past '+CONFIG.sampleLimitDays+' days. Save anyway?'))return;}
+    if(prev>=CONFIG.sampleLimitCount){if(!confirm('Sample limit: MRN '+data.patientMrn+' has '+prev+' samples in the past '+CONFIG.sampleLimitDays+' days. Save anyway?'))return;limitOverride=prev;}}
   if(editingId){
     var idx=DB.entries.findIndex(function(e){return e.id===editingId;});if(idx<0)return;
     var before=DB.entries[idx],changes=[];
@@ -1753,6 +1756,7 @@ function submitEntry(){
     var ar={ts:new Date().toISOString(),action:'add',id:id,field:'--',before:'--',after:'new entry',by:data.staff};
     DB.auditLog.unshift(ar);
     toast('Entry '+id+' saved!');sbSaveEntry(DB.entries[0]);sbSaveAudit(ar);
+      if(limitOverride){var lo={ts:new Date().toISOString(),action:'limit-override',id:id,field:'sample limit',before:limitOverride+' samples in past '+CONFIG.sampleLimitDays+' days (limit '+CONFIG.sampleLimitCount+')',after:'warning overridden -- dispensed anyway',by:data.staff};DB.auditLog.unshift(lo);sbSaveAudit(lo);}
     checkMilestone(data.staff);
   }
   save();clearForm();page=1;renderTable();updateStats();updateBadge();renderRecentLots();renderPersonalBanner(sessionStaff());
@@ -2429,7 +2433,7 @@ function renderAudit(){
     var matchA=!af||l.action===af;
     return matchQ&&matchA;
   });
-  function acBadge(a){if(a==='delete')return'<span class="badge danger">delete</span>';if(a==='edit')return'<span class="badge warn">edit</span>';if(a==='inv-edit')return'<span class="badge info">inv edit</span>';if(a==='inv-delete')return'<span class="badge danger">inv remove</span>';if(a==='recall-action')return'<span class="badge info">recall</span>';if(a==='recall-email-failed')return'<span class="badge danger">email fail</span>';if(a==='disposal')return'<span class="badge warn">disposal</span>';if(a==='inv-check')return'<span class="badge info">inv check</span>';if(a==='config-edit')return'<span class="badge info">config</span>';if(a==='receive')return'<span class="badge ok">received</span>';return'<span class="badge ok">add</span>';}
+  function acBadge(a){if(a==='delete')return'<span class="badge danger">delete</span>';if(a==='edit')return'<span class="badge warn">edit</span>';if(a==='inv-edit')return'<span class="badge info">inv edit</span>';if(a==='inv-delete')return'<span class="badge danger">inv remove</span>';if(a==='recall-action')return'<span class="badge info">recall</span>';if(a==='recall-email-failed')return'<span class="badge danger">email fail</span>';if(a==='disposal')return'<span class="badge warn">disposal</span>';if(a==='inv-check')return'<span class="badge info">inv check</span>';if(a==='config-edit')return'<span class="badge info">config</span>';if(a==='receive')return'<span class="badge ok">received</span>';if(a==='limit-override')return'<span class="badge warn">limit override</span>';if(a==='data-gap')return'<span class="badge danger">data gap</span>';if(a==='limit-override')return'<span class="badge warn">limit override</span>';if(a==='data-gap')return'<span class="badge danger">data gap</span>';return'<span class="badge ok">add</span>';}
   if(!logs.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No records match your filter.</td></tr>';return;}
   tb.innerHTML=logs.map(function(l){return'<tr><td style="font-size:11px;white-space:nowrap">'+esc(fmtDT(l.ts))+'</td><td>'+acBadge(l.action)+'</td><td style="font-family:monospace;font-size:11px">'+esc(l.id)+'</td><td style="color:var(--muted)">'+esc(l.field)+'</td><td style="font-size:11px;max-width:160px;color:var(--muted)" title="'+esc(l.before)+'">'+esc(l.before)+'</td><td style="font-size:11px;max-width:160px" title="'+esc(l.after)+'">'+esc(l.after)+'</td><td style="font-family:monospace;text-align:center">'+esc(l.by)+'</td></tr>';}).join('');
   var st=document.getElementById('audit-status');if(st)st.textContent='Showing '+logs.length+' of '+DB.auditLog.length+' loaded records';
