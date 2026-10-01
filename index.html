@@ -931,7 +931,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-09-30f'; 
+var APP_VERSION='2026-10-01a'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -2147,7 +2147,7 @@ function addDisposal(){
   if(qty>b.remaining){alert('Only '+b.remaining+' '+(b.unit||'unit')+'(s) of Lot '+b.lot+' on hand in '+(b.rep||'this location')+'. You can\'t dispose more than that.');return;}
   if(!reason){alert('Please select a reason.');return;}
   if(!staff){alert('Staff initials are required.');return;}
-  var id='DP-'+String(nextDP++).padStart(3,'0')+ID_SUFFIX+ID_SUFFIX;
+  var id='DP-'+String(nextDP++).padStart(3,'0')+ID_SUFFIX;
   var entry={id:id,date:today(),lot:b.lot,med:b.med,qty:qty,reason:reason,method:document.getElementById('dp-method').value,staff:staff,notes:document.getElementById('dp-notes').value.trim(),rep:b.rep,location:b.rep};
   DB.disposals.unshift(entry);
   var ar={ts:new Date().toISOString(),action:'disposal',id:id,field:'disposal',before:'--',after:qty+'x '+b.med+' Lot '+b.lot+' ('+(b.rep||'no location')+') -- '+reason,by:staff};
@@ -2199,7 +2199,6 @@ function renderAlerts(){
     var k=s.lot+s.med;if(seenLots[k])return;seenLots[k]=true;
     var d=daysTo(s.exp),rem=_alertInv.filter(function(i){return i.med===s.med&&i.lot===normLot(s.lot);}).reduce(function(t,i){return t+i.remaining;},0);
     if(rem<=0)return;
-    var rem=item?(item.received-item.dispensed):s.qtyReceived;if(rem<=0)return;
     var snoozeKey='exp:'+s.lot+':'+s.med;
     if(d<0){al.push({cls:'danger',icon:'&#9888;',title:'EXPIRED STOCK: '+s.med+' (Lot '+s.lot+')',sub:'Expired '+Math.abs(d)+' day'+(Math.abs(d)===1?'':'s')+' ago -- '+rem+' unit'+(rem===1?'':'s')+' on hand -- '+(s.rep||''),disposeBtn:{lot:s.lot,med:s.med}});}
     else if(d<=CONFIG.expiryWarnDays){if(isSnoozed(snoozeKey))return;al.push({cls:'warn',icon:'&#9200;',title:'Expiring in '+d+' day'+(d===1?'':'s')+': '+s.med,sub:'Lot '+s.lot+' -- '+rem+' unit'+(rem===1?'':'s')+' remaining -- '+(s.rep||''),snoozeKey:snoozeKey});}
@@ -2267,7 +2266,7 @@ function addRecall(){
   if(currentRole()==='readonly'){denyMsg('flag recalls');return;}
   var lot=normLot(document.getElementById('rc-lot').value);if(!lot){alert('Lot number is required.');return;}
   var med=document.getElementById('rc-med').value.trim(),reason=document.getElementById('rc-reason').value.trim();
-  var recall={id:'RC-'+String(nextR++).padStart(3,'0')+ID_SUFFIX+ID_SUFFIX,date:today(),lot:lot,med:med,reason:reason,active:true,patientActions:{},actionNotes:'',actionDate:'',actionBy:''};
+  var recall={id:'RC-'+String(nextR++).padStart(3,'0')+ID_SUFFIX,date:today(),lot:lot,med:med,reason:reason,active:true,patientActions:{},actionNotes:'',actionDate:'',actionBy:''};
   DB.recalls.push(recall);sbSaveRecall(recall);save();renderAlerts();updateStats();updateBadge();
   ['rc-lot','rc-med','rc-reason'].forEach(function(id){document.getElementById(id).value='';});
   toast('Recall flagged: Lot '+lot);sendRecallAlert(lot,med,reason);showRecallImpact(recall.id);
@@ -2435,7 +2434,7 @@ function applyCheckAdjustments(checkId,items,by){
     var diff=parseInt(i.actual)-i.expected;if(!diff)return;
     var note='Count adjustment from '+checkId+(i.note?' -- '+i.note:''),recId;
     if(diff<0){
-      var d={id:'DP-'+String(nextDP++).padStart(3,'0')+ID_SUFFIX+ID_SUFFIX,date:today(),lot:normLot(i.lot),med:i.med,qty:-diff,reason:'Count adjustment',method:'Other',staff:by,notes:note,rep:i.rep||''};
+      var d={id:'DP-'+String(nextDP++).padStart(3,'0')+ID_SUFFIX,date:today(),lot:normLot(i.lot),med:i.med,qty:-diff,reason:'Count adjustment',method:'Other',staff:by,notes:note,rep:i.rep||''};
       DB.disposals.unshift(d);sbSaveDisposal(d);recId=d.id;
     }else{
       var s={id:'SI-'+String(nextS++).padStart(4,'0')+ID_SUFFIX,date:today(),med:i.med,lot:normLot(i.lot),exp:expFor(i.lot),qtyReceived:diff,unit:i.unit,rep:i.rep||'',brand:''};
@@ -2564,7 +2563,7 @@ function submitInventoryCheck(){
   if(shortagesNeedingNote.length){alert(shortagesNeedingNote.length+' shortage'+(shortagesNeedingNote.length===1?'':'s')+' require a note before submitting.');return;}
   var discrepancies=currentCheckItems.filter(function(i){return i.actual!==''&&parseInt(i.actual)!==i.expected;}).length;
   if(discrepancies&&!confirm(discrepancies+' lot'+(discrepancies===1?'':'s')+' will be adjusted so inventory matches your count. Continue?'))return;
-  var id='IC-'+String(nextIC++).padStart(3,'0')+ID_SUFFIX+ID_SUFFIX;
+  var id='IC-'+String(nextIC++).padStart(3,'0')+ID_SUFFIX;
   var isSpot=window._invCheckIsSpot||false;
   var check={id:id,date:today(),conducted_by:staff,witness:witness,check_type:isSpot?'spot':'full',items:currentCheckItems.map(function(i){return{med:i.med,lot:i.lot,rep:i.rep,unit:i.unit,expected:i.expected,actual:i.actual===''?null:parseInt(i.actual),discrepancy:i.actual===''?null:parseInt(i.actual)-i.expected,note:i.note};}),total_items:currentCheckItems.length,discrepancies:discrepancies,notes:document.getElementById('invcheck-notes').value.trim()};
   if(!DB.inventoryChecks)DB.inventoryChecks=[];DB.inventoryChecks.unshift(check);
@@ -2671,7 +2670,7 @@ function flagFDAAsRecall(n){
   var lot=normLot(prompt('Enter the lot number to flag:\n\n'+(r.lots||'Check FDA notice')));if(!lot)return;
   var med=(r.product||'').slice(0,60);
   var reason='FDA recall '+r.recall_number+' -- '+(r.reason||'').slice(0,120);
-  var recall={id:'RC-'+String(nextR++).padStart(3,'0')+ID_SUFFIX+ID_SUFFIX,date:today(),lot:lot,med:med,reason:reason,active:true,patientActions:{},actionNotes:'',actionDate:'',actionBy:''};
+  var recall={id:'RC-'+String(nextR++).padStart(3,'0')+ID_SUFFIX,date:today(),lot:lot,med:med,reason:reason,active:true,patientActions:{},actionNotes:'',actionDate:'',actionBy:''};
   DB.recalls.push(recall);sbSaveRecall(recall);
   var ar={ts:new Date().toISOString(),action:'recall-action',id:recall.id,field:'recall flagged',before:'--',after:'Lot '+lot+' flagged from FDA '+r.recall_number,by:sessionStaff()||'?'};
   DB.auditLog.unshift(ar);sbSaveAudit(ar);
@@ -2758,7 +2757,7 @@ function confirmStartCheck(){
   var inv=computeInv(),active=inv.filter(function(i){return i.received-i.dispensed>0;});
   if(!active.length){alert('No active inventory to check.');return;}
   var split=splitLotsForCheck(active);
-  var id='IC-'+String(nextIC++).padStart(3,'0')+ID_SUFFIX+ID_SUFFIX;
+  var id='IC-'+String(nextIC++).padStart(3,'0')+ID_SUFFIX;
   var mkItems=function(lots){return lots.map(function(i){return{med:i.med,lot:i.lot,rep:i.rep,unit:i.unit,expected:i.received-i.dispensed,actual:null,note:''};});};
   var check={id:id,date:today(),conducted_by:counterA,status:'open',counter_a:counterA,counter_b:counterB,
     items_a:mkItems(split.a),items_b:mkItems(split.b),items:[],total_items:active.length,
@@ -3249,8 +3248,8 @@ async function checkForUpdate(){
   try{     
     var res=await fetch(location.pathname+'?vcheck='+Date.now(),{cache:'no-store'});     
     if(!res.ok)return;     
-    var m=(await res.text()).match(/var ='([0-9A-Za-z.\-]+)'/);     
-    if(!m||m[1]===)return;     
+    var m=(await res.text()).match(/var APP_VERSION='([0-9A-Za-z.\-]+)'/);
+    if(!m||m[1]===APP_VERSION)return;     
     _updateAvailable=true;     
     if(!sessionStaff()&&!_isBusy()){location.reload();return;}     
     document.getElementById('update-banner').style.display='block';   
