@@ -87,6 +87,7 @@ tr:hover td{background:#f0f5ff}
 .rbar-fill{height:100%;background:var(--blue-lt);border-left:3px solid var(--accent);display:flex;align-items:center;padding-left:6px;font-size:11px;color:var(--accent);font-weight:700}
 .divider{height:1px;background:var(--border);margin:14px 0}
 .hidden{display:none!important}
+.form-section.editing{border:2px solid #f59e0b;box-shadow:0 0 0 4px rgba(245,158,11,.15)}
 .lot-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;max-height:120px;overflow-y:auto;padding-right:4px}
 .lot-chip{padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:var(--bg);font-size:12px;cursor:pointer;font-family:monospace;transition:all .15s;display:flex;align-items:center;gap:6px}
 .lot-chip:hover{border-color:var(--accent);color:var(--accent);background:var(--blue-lt)}
@@ -216,6 +217,7 @@ tr:hover td{background:#f0f5ff}
         <button class="btn btn-ghost btn-sm" onclick="cancelEdit()">Clear</button>
       </div>
     </div>
+    <div id="edit-banner" style="display:none;background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--radius);padding:8px 12px;margin-bottom:10px;font-size:13px;color:#92400e"></div>
     <div id="preset-chips-wrap" style="display:none">
       <div class="card-title" style="margin-bottom:4px;font-size:10px">Your presets</div>
       <div class="preset-chips" id="preset-chips"></div>
@@ -936,7 +938,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-10-01c'; 
+var APP_VERSION='2026-10-01d'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -1599,6 +1601,7 @@ function clearForm(){
   lotKnown=false;_selBucket=null;clearTimeout(_lotTimer);
   var picker=document.getElementById('lot-picker');if(picker){picker.innerHTML='';picker.style.display='none';}
   document.getElementById('f-staff').value=sessionStaff();var dpStaff=document.getElementById('dp-staff');if(dpStaff&&!dpStaff.value)dpStaff.value=sessionStaff();
+  var _fs=document.querySelector('.form-section');if(_fs)_fs.classList.remove('editing');var _eb=document.getElementById('edit-banner');if(_eb)_eb.style.display='none';var _sb=document.getElementById('form-submit-btn');if(_sb){_sb.style.background='';_sb.style.borderColor='';} 
   editingId=null;document.getElementById('form-label').textContent='New entry';document.getElementById('form-submit-btn').textContent='+ Add entry';
   var prefs=loadUserPrefs(sessionStaff());if(prefs.preferredPhysician)document.getElementById('f-dr').value=prefs.preferredPhysician;
 }
@@ -1765,7 +1768,11 @@ function editEntry(id){
   document.getElementById('f-dr').value=e.dr||'';document.getElementById('f-rep').value=e.rep||'';
   document.getElementById('f-staff').value=e.staff||'';document.getElementById('f-mrn').value=e.patientMrn||'';document.getElementById('f-notes').value=e.notes||'';
   document.getElementById('form-label').textContent='Editing '+id;document.getElementById('form-submit-btn').textContent='Save changes';
-  lotKnown=true;ensureUnitOption(document.getElementById('f-unit'),e.unit);_selBucket=findBucket(bucketKey(e.med,e.lot,e.rep));document.querySelector('.form-section').scrollIntoView({behavior:'smooth'});
+  lotKnown=true;ensureUnitOption(document.getElementById('f-unit'),e.unit);_selBucket=findBucket(bucketKey(e.med,e.lot,e.rep));var fs=document.querySelector('.form-section');fs.classList.add('editing');
+var eb=document.getElementById('edit-banner');eb.innerHTML='&#9998; <strong>Editing '+esc(id)+'</strong> ('+esc(e.med)+', '+esc(fmtD(e.date))+'). Change what you need, then click <strong>Save changes</strong>, or click <strong>Clear</strong> to cancel.';eb.style.display='block';
+var sb=document.getElementById('form-submit-btn');sb.style.background='#d97706';sb.style.borderColor='#d97706';
+document.getElementById('af-med').textContent=e.med||'--';document.getElementById('af-exp').textContent=e.exp?fmtD(e.exp):'--';document.getElementById('af-unit').textContent=e.unit||'--';document.getElementById('af-rep').textContent=e.rep||'--';document.getElementById('autofill-strip').style.display='flex';
+fs.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(function(){document.getElementById('f-mrn').focus();},400);
 }
 function deleteEntry(id){if(!canDeleteEntry()){denyMsg('delete');return;}requirePin(function(){_deleteEntry(id);});}
 function _deleteEntry(id){
