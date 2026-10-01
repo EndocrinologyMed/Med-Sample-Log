@@ -233,6 +233,7 @@ tr:hover td{background:#f0f5ff}
       <div class="field"><label>&nbsp;</label><button class="btn btn-primary" id="form-submit-btn" onclick="submitEntry()" style="white-space:nowrap">+ Add entry</button></div>
     </div>
     <div class="lot-chips" id="lot-picker" style="display:none;margin-top:8px;max-height:none"></div>
+    <button type="button" id="new-box-btn" class="btn btn-ghost btn-sm" style="display:none;margin-top:8px" onclick="openNewBox()">+ New box of this lot</button>
     <div class="autofill-strip" id="autofill-strip" style="display:none">
       <span>Medication: <strong id="af-med">--</strong></span>
       <span>Expiry: <strong id="af-exp">--</strong></span>
@@ -242,7 +243,7 @@ tr:hover td{background:#f0f5ff}
     <div class="intake-panel hidden" id="intake-panel">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
         <span style="font-size:16px">&#9888;</span>
-        <span style="font-size:13px;font-weight:600;color:var(--amber)">Lot not in inventory -- record receipt to continue</span>
+        <span id="intake-title" style="font-size:13px;font-weight:600;color:var(--amber)">Lot not in inventory -- record receipt to continue</span>
       </div>
       <div class="fg intake-panel-fields">
         <div class="field"><label>Medication <span class="req">*</span></label><input id="ip-med" list="ml1" placeholder="Medication name"/></div>
@@ -940,7 +941,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-10-01e'; 
+var APP_VERSION='2026-10-01f'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -1601,7 +1602,7 @@ function clearForm(){
   document.getElementById('autofill-strip').style.display='none';
   document.getElementById('intake-panel').classList.add('hidden');document.getElementById('lot-error').classList.add('hidden');
   lotKnown=false;_selBucket=null;clearTimeout(_lotTimer);
-  var picker=document.getElementById('lot-picker');if(picker){picker.innerHTML='';picker.style.display='none';}
+  var picker=document.getElementById('lot-picker');if(picker){picker.innerHTML='';picker.style.display='none';}var _nb=document.getElementById('new-box-btn');if(_nb)_nb.style.display='none';
   document.getElementById('f-staff').value=sessionStaff();var dpStaff=document.getElementById('dp-staff');if(dpStaff&&!dpStaff.value)dpStaff.value=sessionStaff();
   var _fs=document.querySelector('.form-section');if(_fs)_fs.classList.remove('editing');var _eb=document.getElementById('edit-banner');if(_eb)_eb.style.display='none';var _sb=document.getElementById('form-submit-btn');if(_sb){_sb.style.background='';_sb.style.borderColor='';} 
   editingId=null;document.getElementById('form-label').textContent='New entry';document.getElementById('form-submit-btn').textContent='+ Add entry';
@@ -1614,15 +1615,15 @@ var _selBucket=null,_lotTimer=null;
 function lotAutofill(val){
   var v=normLot(val),errEl=document.getElementById('lot-error'),strip=document.getElementById('autofill-strip'),
       panel=document.getElementById('intake-panel'),picker=document.getElementById('lot-picker');
-  _selBucket=null;lotKnown=false;clearTimeout(_lotTimer);
+  _selBucket=null;lotKnown=false;clearTimeout(_lotTimer);window._newBoxMode=false;var nb=document.getElementById('new-box-btn');if(nb)nb.style.display='none';
   picker.innerHTML='';picker.style.display='none';strip.style.display='none';panel.classList.add('hidden');errEl.classList.add('hidden');
   if(!v)return;
-  var inv=computeInv(),all=lotBuckets(v,inv);
+  var inv=computeInv(),all=lotBuckets(v,inv);if(nb&&all.length&&!editingId)nb.style.display='inline-block';
   if(!all.length){
     // Wait until typing stops before offering "record receipt"
     _lotTimer=setTimeout(function(){
       if(normLot(document.getElementById('f-lot').value)!==v)return;
-      errEl.textContent='Lot not in inventory';errEl.classList.remove('hidden');panel.classList.remove('hidden');
+      document.getElementById('intake-title').textContent='Lot not in inventory -- record receipt to continue';errEl.textContent='Lot not in inventory';errEl.classList.remove('hidden');panel.classList.remove('hidden');
       ['ip-med','ip-brand','ip-exp','ip-rep'].forEach(function(id){document.getElementById(id).value='';});document.getElementById('ip-qty').value=10;
     },700);
     return;
@@ -1630,7 +1631,7 @@ function lotAutofill(val){
   var own=editingId?DB.entries.find(function(e){return e.id===editingId;}):null;
   var avail=all.filter(function(b){var back=(own&&bucketKey(own.med,own.lot,own.rep)===b.key)?(parseInt(own.qty)||0):0;return b.remaining+back>0;});
   if(!avail.length){
-    errEl.textContent='Lot '+v+' is used up ('+all.map(function(b){return b.rep||'no location';}).join(', ')+'). Pick another lot, or record a new receipt on the Inventory tab if more arrived.';
+    errEl.textContent='Lot '+v+' is used up ('+all.map(function(b){return b.rep||'no location';}).join(', ')+'). Pick another lot, or click \u201C+ New box of this lot\u201D below if more arrived.';
     errEl.classList.remove('hidden');return;
   }
   if(avail.length===1){selectBucket(avail[0].key);return;}
@@ -1641,7 +1642,7 @@ function lotAutofill(val){
 }
 function selectBucket(key){
   var b=findBucket(key);if(!b)return;
-  _selBucket=b;lotKnown=true;
+  _selBucket=b;lotKnown=true;var _nb2=document.getElementById('new-box-btn');if(_nb2&&!editingId)_nb2.style.display='inline-block';
   var src=DB.stockIn.find(function(s){return bucketKey(s.med,s.lot,s.rep)===key;})||{};
   document.getElementById('f-lot').value=b.lot;
   document.getElementById('f-med').value=b.med;document.getElementById('f-brand').value=src.brand||'';
@@ -1657,7 +1658,22 @@ function selectBucket(key){
   document.getElementById('btn-save-preset').style.display='inline';
   document.getElementById('f-mrn').focus();
 }
-function dismissIntake(){document.getElementById('intake-panel').classList.add('hidden');document.getElementById('lot-error').classList.add('hidden');document.getElementById('f-lot').value='';lotKnown=false;}
+function dismissIntake(){document.getElementById('intake-panel').classList.add('hidden');document.getElementById('lot-error').classList.add('hidden');if(window._newBoxMode){window._newBoxMode=false;lotAutofill(document.getElementById('f-lot').value);return;}document.getElementById('f-lot').value='';lotKnown=false;}
+function openNewBox(){
+  if(editingId){toast('Finish or clear the edit first.');return;}
+  var v=normLot(document.getElementById('f-lot').value);if(!v)return;
+  var b=_selBucket||lotBuckets(v)[0];if(!b)return;
+  var src=DB.stockIn.find(function(s){return bucketKey(s.med,s.lot,s.rep)===b.key;})||{};
+  document.getElementById('ip-med').value=b.med||'';document.getElementById('ip-brand').value=src.brand||'';
+  document.getElementById('ip-exp').value=b.exp||'';document.getElementById('ip-qty').value='';
+  ensureUnitOption(document.getElementById('ip-unit'),b.unit);document.getElementById('ip-rep').value='';
+  document.getElementById('lot-picker').style.display='none';document.getElementById('autofill-strip').style.display='none';
+  document.getElementById('lot-error').classList.add('hidden');document.getElementById('new-box-btn').style.display='none';
+  document.getElementById('intake-title').textContent='New box of Lot '+v+' -- enter how many arrived and where you stored them';
+  document.getElementById('intake-panel').classList.remove('hidden');
+  _selBucket=null;lotKnown=false;window._newBoxMode=true;
+  document.getElementById('ip-qty').focus();
+}
 function saveIntakeAndContinue(){
   if(currentRole()==='readonly'){denyMsg('add inventory');return;}
   var lot=normLot(document.getElementById('f-lot').value),med=document.getElementById('ip-med').value.trim();
