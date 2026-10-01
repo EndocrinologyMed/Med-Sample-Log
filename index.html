@@ -941,7 +941,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-10-01f'; 
+var APP_VERSION='2026-10-01g'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -983,6 +983,18 @@ var _db=supabase.createClient(_SB_URL,_SB_KEY);
 
 function _sbDot(c,t){var d=document.getElementById('sync-dot');if(d){d.style.background=c;d.title=t;}}
 function _sbBadge(){var q=JSON.parse(localStorage.getItem('sb_write_queue')||'[]');var b=document.getElementById('sync-badge'),c=document.getElementById('sync-count');if(b&&c){if(q.length){b.style.display='inline';c.textContent=q.length;}else b.style.display='none';}}
+// Supabase returns at most 1,000 rows per request, so load in batches until everything is in
+async function fetchAll(table){
+  var all=[],from=0,size=1000;
+  while(true){
+    var r=await _db.from(table).select('*').order('created_at',{ascending:false}).order('id',{ascending:true}).range(from,from+size-1);
+    if(r.error)throw r.error;
+    var rows=r.data||[];all=all.concat(rows);
+    if(rows.length<size)break;
+    from+=size;
+  }
+  return {data:all,error:null};
+}
 function mapEntry(r){return Object.assign({},r,{patientMrn:r.patient_mrn,editHistory:r.edit_history||[]});}
 function mapStockIn(r){return Object.assign({},r,{qtyReceived:r.qty_received,rep:r.location||'',receivedBy:r.received_by||''});}
 function mapAudit(r){return{ts:r.ts,action:r.action,id:r.entry_id,field:r.field,before:r.before_val,after:r.after_val,by:r.by_staff,created_at:r.created_at};}
@@ -991,10 +1003,10 @@ function mapRecall(r){return Object.assign({patientActions:{},actionNotes:'',act
 async function loadFromSupabase(){
   try{
     var res=await Promise.all([
-      _db.from('log_entries').select('*').order('created_at',{ascending:false}),
-      _db.from('stock_in').select('*').order('created_at',{ascending:false}),
-      _db.from('disposals').select('*').order('created_at',{ascending:false}),
-      _db.from('recalls').select('*').order('created_at',{ascending:false}),
+      fetchAll('log_entries'),
+      fetchAll('stock_in'),
+      fetchAll('disposals'),
+      fetchAll('recalls'),
       _db.from('audit_log').select('*').order('created_at',{ascending:false}).limit(500),
       _db.from('settings').select('*')
     ]);
@@ -1127,10 +1139,10 @@ async function pollSupabase(){
   if(stillPending.length)return;
   try{
     var res=await Promise.all([
-      _db.from('log_entries').select('*').order('created_at',{ascending:false}),
-      _db.from('stock_in').select('*').order('created_at',{ascending:false}),
-      _db.from('disposals').select('*').order('created_at',{ascending:false}),
-      _db.from('recalls').select('*').order('created_at',{ascending:false}),
+      fetchAll('log_entries'),
+      fetchAll('stock_in'),
+      fetchAll('disposals'),
+      fetchAll('recalls'),
       _db.from('inventory_checks').select('*').order('created_at',{ascending:false})
     ]);
     DB.entries=(res[0].data||[]).map(mapEntry);DB.stockIn=(res[1].data||[]).map(mapStockIn);
