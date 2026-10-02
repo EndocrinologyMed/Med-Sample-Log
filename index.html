@@ -2271,7 +2271,8 @@ function renderAlerts(){
       al.push({cls:'warn',icon:'&#128230;',title:'Low stock: '+med,sub:rem+' unit'+(rem===1?'':'s')+' remaining -- threshold '+thresh,snoozeKey:sk});}
   });
   inv.filter(function(i){return i.remaining<0;}).forEach(function(i){al.push({cls:'danger',icon:'&#10067;',title:'Count below zero: '+esc(i.med)+' (Lot '+esc(i.lot)+')',sub:esc(i.rep||'No location')+' -- shows '+i.remaining+'. More was logged out than received. Check for a missed receipt, a lot-number typo, or an entry logged under the wrong location.'});});
-    var cnt=DB.entries.filter(function(e){return e.lot.trim().toLowerCase()===r.lot.trim().toLowerCase();}).length;
+  DB.recalls.filter(function(r){return r.active;}).forEach(function(r){
+  var cnt=DB.entries.filter(function(e){return e.lot.trim().toLowerCase()===r.lot.trim().toLowerCase();}).length;
     var checklist=CONFIG.recallChecklist||[],seen={},patients=[];
     DB.entries.filter(function(e){return e.lot.trim().toLowerCase()===r.lot.trim().toLowerCase();}).forEach(function(e){var k=e.patientMrn||e.id;if(!seen[k]){seen[k]=true;patients.push(k);}});
     var total=patients.length*checklist.length,done=0;
