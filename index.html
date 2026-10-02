@@ -941,7 +941,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-10-02b'; 
+var APP_VERSION='2026-10-02c'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -956,6 +956,7 @@ function getTimeOfDay(){var h=new Date().getHours();if(h<12)return'Good morning'
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function jsq(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 function jsArg(s){return esc(jsq(s));}
+function plural(n,u){u=u||'unit';if(+n===1||/s$/i.test(u))return u;if(/(x|ch|sh)$/i.test(u))return u+'es';return u+'s';}
 function csvCell(v){var s=String(v==null?'':v);if(/^[=+\-@\t\r]/.test(s))s="'"+s;return'"'+s.replace(/"/g,'""')+'"';}
 function parseLocalDate(s){if(!s)return null;var p=String(s).slice(0,10).split('-');if(p.length<3)return new Date(s);return new Date(+p[0],+p[1]-1,+p[2]);}
 // One "bucket" = one medication + one lot + one storage location
@@ -1769,7 +1770,7 @@ function submitEntry(){
   if(b&&(lotChanged||data.qty>(parseInt(own.qty)||0))){
     var back=(own&&!lotChanged&&!(CONFIG.inventoryBaselineDate&&own.date<CONFIG.inventoryBaselineDate))?(parseInt(own.qty)||0):0;
     var avail=b.remaining+back;
-    if(avail<data.qty){alert('Not enough stock. Only '+Math.max(avail,0)+' '+(b.unit||'unit')+'(s) left for Lot '+data.lot+' in '+(b.rep||'this location')+'.');return;}
+    if(avail<data.qty){alert('Not enough stock. Only '+Math.max(avail,0)+' '+plural(Math.max(avail,0),b.unit)+' left for Lot '+data.lot+' in '+(b.rep||'this location')+'.');return;}
   }
   var limitOverride=0;
   if(!editingId){var prev=samplesInWindow(data.patientMrn,null);
@@ -1846,7 +1847,7 @@ function showStatModal(type){
         '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-family:monospace;font-size:11px">'+i.lot+'</td>'+
         '<td style="padding:8px 10px;border-bottom:1px solid var(--border)">'+fmtD(i.exp)+'</td>'+
         '<td style="padding:8px 10px;border-bottom:1px solid var(--border)">'+daysLabel+'</td>'+
-        '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-weight:700">'+rem+' '+(i.unit||'units')+'</td>'+
+        '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-weight:700">'+rem+' '+plural(rem,i.unit)+'</td>'+
         '<td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:12px">'+(i.rep||'--')+'</td>'+
         '<td style="padding:8px 10px;border-bottom:1px solid var(--border)">'+(isRecalled(i.lot)?'<span class="badge recall-badge">RECALLED</span>':'<span class="badge warn">Expiring</span>')+'</td>'+
       '</tr>';
@@ -1874,7 +1875,7 @@ function showStatModal(type){
       '<td style="padding:7px 10px;border-bottom:1px solid var(--border);font-weight:600">'+e.med+(rc?' <span class="badge recall-badge">RECALL</span>':'')+'</td>'+
       '<td style="padding:7px 10px;border-bottom:1px solid var(--border);font-family:monospace;font-size:11px">'+e.lot+'</td>'+
       '<td style="padding:7px 10px;border-bottom:1px solid var(--border)">'+expBadge(e.exp)+'</td>'+
-      '<td style="padding:7px 10px;border-bottom:1px solid var(--border)">'+e.qty+' '+e.unit+'</td>'+
+      '<td style="padding:7px 10px;border-bottom:1px solid var(--border)">'+e.qty+' '+plural(e.qty,e.unit)+'</td>'+
       '<td style="padding:7px 10px;border-bottom:1px solid var(--border)">'+e.dr+'</td>'+
       '<td style="padding:7px 10px;border-bottom:1px solid var(--border);font-family:monospace;font-size:11px">'+(e.patientMrn||'--')+(ptCount>CONFIG.sampleLimitCount?' <span class="badge limit-badge">'+ptCount+'</span>':'')+'</td>'+
       '<td style="padding:7px 10px;border-bottom:1px solid var(--border);font-family:monospace">'+e.staff+'</td>'+
@@ -1901,7 +1902,7 @@ function renderTable(){
         '<td style="font-weight:600">'+e.med+(rc?' <span class="badge recall-badge">RECALL</span>':'')+'</td>'+
         '<td style="font-family:monospace;font-size:11px">'+e.lot+'</td>'+
         '<td>'+expBadge(e.exp)+'</td>'+
-        '<td style="text-align:center">'+e.qty+' '+e.unit+'</td>'+
+        '<td style="text-align:center">'+e.qty+' '+plural(e.qty,e.unit)+'</td>'+
         '<td>'+e.dr+'</td>'+
         '<td style="font-family:monospace;font-size:11px">'+(e.patientMrn||'--')+(ptCount>CONFIG.sampleLimitCount?' <span class="badge limit-badge">'+ptCount+'</span>':'')+'</td>'+
         '<td style="font-family:monospace;text-align:center">'+e.staff+'</td>'+
@@ -2009,7 +2010,7 @@ function renderInventory(){
   });
   order.forEach(function(k){var m=meds[k],th=getThreshold(m.name)||0;m.th=th;m.cls=m.rem<=0?'danger':(th>0&&m.rem<=th)?'warn':'ok';});
   var clsLabel=function(cls){return cls==='danger'?'Out of stock':cls==='warn'?'Low stock':'In stock';};
-  var unitTxt=function(n,u){return n+' '+esc(u||'unit')+(n===1||!u||/s$/.test(u)?'':'s');};
+  var unitTxt=function(n,u){return n+' '+esc(plural(n,u));};
   var locTxt=function(m){return Object.keys(m.locs).sort(function(a,b){return m.locs[b]-m.locs[a];}).map(function(l){return esc(l)+' '+m.locs[l];}).join(', ')||'--';};
 
   // ---- Totals-only view: one row per medication ----
@@ -2103,7 +2104,7 @@ function renderReceiving(){
       var when=s.created_at?new Date(s.created_at).toLocaleString([],{month:'2-digit',day:'2-digit',year:'2-digit',hour:'numeric',minute:'2-digit'}):fmtD(s.date);
       return '<tr><td style="font-size:11px">'+esc(when)+'</td><td>'+who+'</td><td style="font-family:monospace;font-size:10px;color:var(--muted)">'+esc(s.id)+'</td>'+
         '<td style="font-weight:600">'+esc(s.med)+'</td><td style="font-family:monospace;font-size:11px">'+esc(s.lot)+'</td>'+
-        '<td>'+esc(s.qtyReceived)+' '+esc(s.unit||'')+'</td><td style="font-size:12px">'+esc(s.rep||'--')+'</td><td>'+expBadge(s.exp)+'</td></tr>';
+        '<td>'+esc(s.qtyReceived)+' '+esc(plural(s.qtyReceived,s.unit))+'</td><td style="font-size:12px">'+esc(s.rep||'--')+'</td><td>'+expBadge(s.exp)+'</td></tr>';
     }).join('')+'</tbody></table></div>'+
     (total>100?'<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing newest 100 of '+total+' \u2014 search to narrow.</p>':'');
 }
@@ -2182,7 +2183,7 @@ function disposalLotFill(val){
 function dpLocChanged(){
   var sel=document.getElementById('dp-loc'),b=sel&&sel.value?findBucket(sel.value):null;
   document.getElementById('dp-med').value=b?b.med:'';
-  var a=document.getElementById('dp-avail');if(a)a.textContent=b?b.remaining+' '+(b.unit||'unit')+'(s) on hand':'';
+  var a=document.getElementById('dp-avail');if(a)a.textContent=b?b.remaining+' '+plural(b.remaining,b.unit)+' on hand':'';
 }
 function addDisposal(){
   if(currentRole()==='readonly'){denyMsg('record disposals');return;}
@@ -2192,7 +2193,7 @@ function addDisposal(){
   if(!normLot(document.getElementById('dp-lot').value)){alert('Lot number is required.');return;}
   if(!b){alert('Choose the location this lot is being removed from.');return;}
   if(qty<1){alert('Quantity must be at least 1.');return;}
-  if(qty>b.remaining){alert('Only '+b.remaining+' '+(b.unit||'unit')+'(s) of Lot '+b.lot+' on hand in '+(b.rep||'this location')+'. You can\'t dispose more than that.');return;}
+  if(qty>b.remaining){alert('Only '+b.remaining+' '+plural(b.remaining,b.unit)+' of Lot '+b.lot+' on hand in '+(b.rep||'this location')+'. You can\'t dispose more than that.');return;}
   if(!reason){alert('Please select a reason.');return;}
   if(!staff){alert('Staff initials are required.');return;}
   var id='DP-'+String(nextDP++).padStart(3,'0')+ID_SUFFIX;
