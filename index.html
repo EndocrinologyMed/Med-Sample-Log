@@ -941,7 +941,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-10-01g'; 
+var APP_VERSION='2026-10-02a'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -956,6 +956,7 @@ function getTimeOfDay(){var h=new Date().getHours();if(h<12)return'Good morning'
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function jsq(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 function jsArg(s){return esc(jsq(s));}
+function csvCell(v){var s=String(v==null?'':v);if(/^[=+\-@\t\r]/.test(s))s="'"+s;return'"'+s.replace(/"/g,'""')+'"';}
 function parseLocalDate(s){if(!s)return null;var p=String(s).slice(0,10).split('-');if(p.length<3)return new Date(s);return new Date(+p[0],+p[1]-1,+p[2]);}
 // One "bucket" = one medication + one lot + one storage location
 function bucketKey(med,lot,loc){return (String(med||'').trim()+'|'+normLot(lot)+'|'+String(loc||'').trim()).toLowerCase();}
@@ -1698,6 +1699,8 @@ function saveIntakeAndContinue(){
   var existingNamesIP=[...new Set(DB.stockIn.map(function(s){return s.med;}).filter(Boolean))];
   var exactCIIP=existingNamesIP.find(function(n){return n.trim().toLowerCase()===med.trim().toLowerCase();});
   if(exactCIIP&&exactCIIP!==med){med=exactCIIP;}
+  else if(!exactCIIP){var fwIP=med.split(' ')[0].toLowerCase();var simIP=existingNamesIP.filter(function(n){return n.split(' ')[0].toLowerCase()===fwIP;});
+    if(simIP.length&&!confirm('"'+med+'" is a new medication name. These existing names start the same way:\n\n'+simIP.slice(0,8).join('\n')+'\n\nOK = add "'+med+'" as a new name\nCancel = go back and pick one of these'))return;}
   var entry={id:'SI-'+String(nextS++).padStart(4,'0')+ID_SUFFIX,date:today(),med:med,lot:lot,brand:document.getElementById('ip-brand').value.trim(),exp:exp,qtyReceived:qty,unit:document.getElementById('ip-unit').value,rep:loc};
   DB.stockIn.push(entry);sbSaveStockIn(entry);save();
   document.getElementById('intake-panel').classList.add('hidden');document.getElementById('lot-error').classList.add('hidden');
@@ -1933,7 +1936,7 @@ function updateBadge(){
 function exportCSV(){
   if(!DB.entries.length){alert('No entries to export.');return;}
   var headers=['ID','Date','Time','Medication','Brand','Lot #','Expiry','Qty','Unit','Physician','Rep','Staff','Patient MRN','Notes'];
-  var rows=DB.entries.map(function(e){return[e.id,e.date,e.time,e.med,e.brand||'',e.lot,e.exp,e.qty,e.unit,e.dr,e.rep||'',e.staff,e.patientMrn||'',e.notes||''].map(function(v){return'"'+String(v).replace(/"/g,'""')+'"';}).join(',');});
+  var rows=DB.entries.map(function(e){return[e.id,e.date,e.time,e.med,e.brand||'',e.lot,e.exp,e.qty,e.unit,e.dr,e.rep||'',e.staff,e.patientMrn||'',e.notes||''].map(csvCell).join(',');});
   var csv=[headers.join(',')].concat(rows).join('\n');
   var a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='med-sample-log-'+today()+'.csv';a.click();
 }
@@ -2248,10 +2251,6 @@ function renderAlerts(){
     if(d<0){al.push({cls:'danger',icon:'&#9888;',title:'EXPIRED STOCK: '+s.med+' (Lot '+s.lot+')',sub:'Expired '+Math.abs(d)+' day'+(Math.abs(d)===1?'':'s')+' ago -- '+rem+' unit'+(rem===1?'':'s')+' on hand -- '+(s.rep||''),disposeBtn:{lot:s.lot,med:s.med}});}
     else if(d<=CONFIG.expiryWarnDays){if(isSnoozed(snoozeKey))return;al.push({cls:'warn',icon:'&#9200;',title:'Expiring in '+d+' day'+(d===1?'':'s')+': '+s.med,sub:'Lot '+s.lot+' -- '+rem+' unit'+(rem===1?'':'s')+' remaining -- '+(s.rep||''),snoozeKey:snoozeKey});}
   });
-  DB.entries.forEach(function(e){var k=e.lot+e.med;if(seenLots[k])return;seenLots[k]=true;var d=daysTo(e.exp);var snoozeKey='exp:'+e.lot+':'+e.med;
-    if(d<0){al.push({cls:'danger',icon:'&#9888;',title:'EXPIRED: '+e.med+' (Lot '+e.lot+')',sub:'Expired '+Math.abs(d)+' day'+(Math.abs(d)===1?'':'s')+' ago -- Entry '+e.id,disposeBtn:{lot:e.lot,med:e.med}});}
-    else if(d<=CONFIG.expiryWarnDays){if(isSnoozed(snoozeKey))return;al.push({cls:'warn',icon:'&#9200;',title:'Expiring in '+d+' day'+(d===1?'':'s')+': '+e.med,sub:'Lot '+e.lot+' -- Entry '+e.id,snoozeKey:snoozeKey});}
-  });
   var inv=computeInv(),byMedRem={};inv.forEach(function(i){if(!byMedRem[i.med])byMedRem[i.med]=0;byMedRem[i.med]+=i.received-i.dispensed;});
   Object.keys(byMedRem).forEach(function(med){
     var rem=byMedRem[med];
@@ -2384,7 +2383,7 @@ function resolveRecall(id){var r=DB.recalls.find(function(x){return x.id===id;})
 function exportRecallMRNs(lot){
   var affected=DB.entries.filter(function(e){return e.lot.trim().toLowerCase()===lot.trim().toLowerCase()&&e.patientMrn;});
   if(!affected.length){alert('No patient MRNs found for lot '+lot+'.');return;}
-  var csv=['Patient MRN,Date Dispensed,Medication,Lot #,Physician,Entry ID'].concat(affected.map(function(e){return[e.patientMrn,e.date,e.med,e.lot,e.dr,e.id].map(function(v){return'"'+String(v||'').replace(/"/g,'""')+'"';}).join(',');})).join('\n');
+  var csv=['Patient MRN,Date Dispensed,Medication,Lot #,Physician,Entry ID'].concat(affected.map(function(e){return[e.patientMrn,e.date,e.med,e.lot,e.dr,e.id].map(csvCell).join(',');})).join('\n');
   var a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='recall-mrns-lot-'+lot+'-'+today()+'.csv';a.click();
   toast('Exported '+affected.length+' MRNs for Lot '+lot);
 }
@@ -2423,7 +2422,7 @@ function exportReportCSV(){
   var p=document.getElementById('rep-period').value;
   var periodLabel=p==='month'?'This Month':p==='quarter'?'This Quarter':'All Time';
   var rows=[];
-  var q=function(v){return'"'+String(v||'').replace(/"/g,'""')+'"';};
+  var q=csvCell;
   rows.push([q('Endocrinology Associates -- Medication Sample Log Report')]);
   rows.push([q('Period: '+periodLabel),q('Generated: '+new Date().toLocaleString()),q('Total entries: '+ents.length)]);
   rows.push(['']);
