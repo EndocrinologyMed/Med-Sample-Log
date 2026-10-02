@@ -941,7 +941,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-10-02a'; 
+var APP_VERSION='2026-10-02b'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -1930,7 +1930,7 @@ function updateBadge(){
   var inv=computeInv();
   var n=inv.filter(function(i){var d=daysTo(i.exp);return d>=0&&d<=CONFIG.expiryWarnDays&&(i.received-i.dispensed)>0;}).length+
     DB.recalls.filter(function(r){return r.active;}).length+
-    (DB.fdaRecalls||[]).filter(function(r){return !r.dismissed;}).length+overLimitPatients().length;
+    (DB.fdaRecalls||[]).filter(function(r){return !r.dismissed;}).length+overLimitPatients().length+inv.filter(function(i){return i.remaining<0;}).length;
   var b=document.getElementById('badge-alerts');if(n>0){b.textContent=n;b.classList.remove('hidden');}else b.classList.add('hidden');
 }
 function exportCSV(){
@@ -2004,7 +2004,7 @@ function renderInventory(){
   var meds={},order=[];
   scope.forEach(function(b){var k=medKey(b.med);
     if(!meds[k]){meds[k]={key:k,name:b.med,unit:b.unit,rem:0,lots:0,locs:{},exp:null,lotList:[]};order.push(k);}
-    var m=meds[k];m.lotList.push(b.lot);
+    var m=meds[k];m.lotList.push(b.lot);if(b.remaining<0)m.neg=(m.neg||0)+1;
     if(b.remaining>0){m.rem+=b.remaining;m.lots++;if(b.rep)m.locs[b.rep]=(m.locs[b.rep]||0)+b.remaining;if(b.exp&&(!m.exp||b.exp<m.exp))m.exp=b.exp;}
   });
   order.forEach(function(k){var m=meds[k],th=getThreshold(m.name)||0;m.th=th;m.cls=m.rem<=0?'danger':(th>0&&m.rem<=th)?'warn':'ok';});
@@ -2030,7 +2030,7 @@ function renderInventory(){
           '<td style="text-align:center">'+m.lots+'</td>'+
           '<td style="font-size:11px;white-space:normal;max-width:260px">'+locTxt(m)+'</td>'+
           '<td>'+(m.exp?expBadge(m.exp):'--')+'</td>'+
-          '<td><span class="badge '+m.cls+'">'+clsLabel(m.cls)+(m.th?' (min '+m.th+')':'')+'</span></td></tr>';
+          '<td><span class="badge '+m.cls+'">'+clsLabel(m.cls)+(m.th?' (min '+m.th+')':'')+'</span>'+(m.neg?' <span class="badge danger">'+m.neg+' lot'+(m.neg===1?'':'s')+' below zero</span>':'')+'</td></tr>';
       }).join('')+'</tbody></table></div>'+note;
     renderThresholds();renderReceiving();return;
   }
@@ -2044,7 +2044,7 @@ function renderInventory(){
   if(q)rows=rows.filter(function(r){return (r.b.med+' '+r.b.lot).toLowerCase().indexOf(q)>=0;});
   if(statusF)rows=rows.filter(function(r){return r.cls===statusF;});
   var hidden=0;
-  if(!showEmpty&&statusF!=='danger'){var n0=rows.length;rows=rows.filter(function(r){return r.b.remaining>0;});hidden=n0-rows.length;}
+  if(!showEmpty&&statusF!=='danger'){var n0=rows.length;rows=rows.filter(function(r){return r.b.remaining!==0;});hidden=n0-rows.length;}
   var hiddenNote=hidden?'<p style="font-size:11px;color:var(--muted);margin-top:8px">'+hidden+' empty lot'+(hidden===1?'':'s')+' hidden \u2014 tick "Show empty lots" to see them.</p>':'';
   if(!rows.length){c.innerHTML='<p style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No matching items.</p>'+hiddenNote;renderThresholds();renderReceiving();return;}
   var canInv=canEditInventory(),canDispose=currentRole()!=='readonly',lastChecked=getLastCheckedMap();
@@ -2065,7 +2065,7 @@ function renderInventory(){
     var lr=lastRcv[b.key],who=lr&&lr.by?lr.by:'';
     var tip='Lot: '+b.lot+' | '+b.med+' | Location: '+(b.rep||'--')+' | Expiry: '+(b.exp||'--')+(lr?' | Last received '+fmtD(lr.date)+(who?' by '+(CONFIG.staffNames[who]||who):''):'');
     var recalled=isRecalled(b.lot);
-    html+='<tr data-notes="'+encodeURIComponent(tip)+'" onmouseenter="showNoteTooltip(event,decodeURIComponent(this.getAttribute(\'data-notes\')))" onmouseleave="hideNoteTooltip()" style="'+(recalled?'background:#fef9c3':rem<=0?'opacity:.6':'')+'">'+
+    html+='<tr data-notes="'+encodeURIComponent(tip)+'" onmouseenter="showNoteTooltip(event,decodeURIComponent(this.getAttribute(\'data-notes\')))" onmouseleave="hideNoteTooltip()" style="'+(recalled?'background:#fef9c3':rem<0?'background:#fee2e2':rem<=0?'opacity:.6':'')+'">'+
       '<td style="font-family:monospace;font-size:10px;color:var(--muted)">'+esc(b.id||'--')+'</td>'+
       '<td style="color:var(--muted)">'+esc(b.med)+(recalled?' <span class="badge recall-badge">RECALL</span>':'')+'</td>'+
       '<td style="font-family:monospace;font-size:11px">'+esc(b.lot)+'</td>'+
@@ -2075,7 +2075,7 @@ function renderInventory(){
       '<td style="font-size:12px">'+esc(b.rep||'--')+'</td>'+
       '<td style="font-size:11px">'+(lr?esc(fmtD(lr.date))+(who?' \u00B7 <strong style="font-family:monospace">'+esc(who)+'</strong>':''):'--')+'</td>'+
       '<td style="font-size:11px">'+(lastChecked[b.lot]?fmtD(lastChecked[b.lot]):'<span style="color:#dc2626;font-size:10px">Never</span>')+'</td>'+
-      '<td><span class="badge '+r.cls+'">'+(rem<=0?'Out of stock':clsLabel(r.cls))+'</span></td>'+
+      '<td><span class="badge '+r.cls+'">'+(rem<0?'Below zero \u2014 check':rem===0?'Out of stock':clsLabel(r.cls))+'</span></td>'+
       '<td class="no-print" style="white-space:nowrap;display:flex;gap:4px;flex-wrap:wrap;padding:6px 8px">'+
         '<button class="btn btn-ghost btn-sm" onclick="editStockIn(\''+jsArg(b.id)+'\')" style="'+(canInv?'':'opacity:.35;cursor:not-allowed')+'">Edit</button>'+
         (canDispose&&rem>0?' <button class="btn btn-success btn-sm" onclick="disposeFromBucket(\''+jsArg(b.key)+'\')">Dispose</button>':'')+
@@ -2258,7 +2258,7 @@ function renderAlerts(){
     if(rem<=thresh&&rem>0){var sk='low:'+med;if(isSnoozed(sk))return;
       al.push({cls:'warn',icon:'&#128230;',title:'Low stock: '+med,sub:rem+' unit'+(rem===1?'':'s')+' remaining -- threshold '+thresh,snoozeKey:sk});}
   });
-  DB.recalls.filter(function(r){return r.active;}).forEach(function(r){
+  inv.filter(function(i){return i.remaining<0;}).forEach(function(i){al.push({cls:'danger',icon:'&#10067;',title:'Count below zero: '+esc(i.med)+' (Lot '+esc(i.lot)+')',sub:esc(i.rep||'No location')+' -- shows '+i.remaining+'. More was logged out than received. Check for a missed receipt, a lot-number typo, or an entry logged under the wrong location.'});});
     var cnt=DB.entries.filter(function(e){return e.lot.trim().toLowerCase()===r.lot.trim().toLowerCase();}).length;
     var checklist=CONFIG.recallChecklist||[],seen={},patients=[];
     DB.entries.filter(function(e){return e.lot.trim().toLowerCase()===r.lot.trim().toLowerCase();}).forEach(function(e){var k=e.patientMrn||e.id;if(!seen[k]){seen[k]=true;patients.push(k);}});
@@ -2559,7 +2559,7 @@ function getLastCheckedMap(){
 function startInventoryCheck(isSpot,locFilter){   
   document.getElementById('invcheck-witness').closest('.field').style.display='';
   var inv=computeInv();if(!inv.length){alert('No inventory on record to check.');return;}
-  var active=inv.filter(function(i){return i.received-i.dispensed>0;});
+  var active=inv.filter(function(i){return i.received-i.dispensed!==0;});
   if(locFilter&&locFilter.length)active=active.filter(function(i){return locFilter.indexOf(i.rep||'')>=0;});
   if(!active.length){alert(locFilter&&locFilter.length?'No lots currently in stock in the selected location(s).':'All inventory is fully dispensed.');return;}
   var lastChecked=getLastCheckedMap();
