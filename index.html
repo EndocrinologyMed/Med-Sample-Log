@@ -951,7 +951,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-10-02e'; 
+var APP_VERSION='2026-10-05a'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -1509,7 +1509,7 @@ function applyRoleRestrictions(initials){
       var limBtn=document.createElement('button');limBtn.id='ro-nav-limit';limBtn.textContent='Sample Limits';limBtn.onclick=function(){showReadonlySampleLimit();};nav.appendChild(limBtn);
     }
     // Hide forms in inventory tab
-    var formsWrap=document.getElementById('inv-forms-wrapper');if(formsWrap)formsWrap.style.display='none';document.querySelectorAll('.inv-write').forEach(function(b){b.style.display='none';});document.querySelectorAll('.inv-write').forEach(function(b){b.style.display='none';});document.querySelectorAll('.inv-write').forEach(function(b){b.style.display='none';});
+    var formsWrap=document.getElementById('inv-forms-wrapper');if(formsWrap)formsWrap.style.display='none';document.querySelectorAll('.inv-write').forEach(function(b){b.style.display='none';});
     var threshCard=document.getElementById('inv-thresholds-card');if(threshCard)threshCard.style.display='none';
     // Hide log entry form
     var formSection=document.querySelector('.form-section');if(formSection)formSection.style.display='none';
@@ -2819,7 +2819,7 @@ function updateSplitPreview(){
   var bVal=document.getElementById('sc-counter-b').value;
   var preview=document.getElementById('sc-split-preview');if(!preview)return;
   if(!aVal||!bVal){preview.innerHTML='Select both counters to preview the lot split.';return;}
-  var inv=computeInv(),active=inv.filter(function(i){return i.received-i.dispensed>0;});
+  var inv=computeInv(),active=inv.filter(function(i){return i.received-i.dispensed!==0;});
   if(!active.length){preview.innerHTML='No active inventory to split.';return;}
   var split=splitLotsForCheck(active);
   var aName=CONFIG.staffNames[aVal]||aVal,bName=CONFIG.staffNames[bVal]||bVal;
@@ -2839,7 +2839,7 @@ function confirmStartCheck(){
   var now=new Date(),thisMonth=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   var doneThisMonth=(DB.inventoryChecks||[]).find(function(c){return(c.status==='complete'||!c.status)&&c.date&&c.date.startsWith(thisMonth);});
   if(doneThisMonth&&!confirm('A check ('+doneThisMonth.id+') was already completed this month on '+fmtD(doneThisMonth.date)+'. Start another one anyway?'))return;
-  var inv=computeInv(),active=inv.filter(function(i){return i.received-i.dispensed>0;});
+  var inv=computeInv(),active=inv.filter(function(i){return i.received-i.dispensed!==0;});
   if(!active.length){alert('No active inventory to check.');return;}
   var split=splitLotsForCheck(active);
   var id='IC-'+String(nextIC++).padStart(3,'0')+ID_SUFFIX;
