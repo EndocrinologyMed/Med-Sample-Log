@@ -951,7 +951,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-10-06c'; 
+var APP_VERSION='2026-10-06d'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -2716,7 +2716,7 @@ function showCheckDetail(id){
     var diff=i.discrepancy;var diffStr=diff===null?'Not counted':(diff>0?'+'+diff:String(diff));
     var rowBg=diff===null?'':diff<0?'background:#fff5f5':diff===0?'background:#f0fdf4':'background:#fffbeb';
     var diffColor=diff===null?'#6b7280':diff<0?'#dc2626':diff===0?'#166534':'#d97706';
-    return'<tr style="'+rowBg+'"><td style="font-weight:600">'+i.med+'</td><td style="font-family:monospace;font-size:11px">'+i.lot+'</td><td style="font-size:12px">'+(i.rep||'--')+'</td><td style="text-align:center">'+i.expected+' '+plural(i.expected,i.unit)+'</td>'<td style="text-align:center">'+(i.actual===null?'--':i.actual+' '+plural(i.actual,i.unit))+'</td><td style="text-align:center;font-weight:700;color:'+diffColor+'">'+diffStr+'</td><td style="font-size:12px;color:#6b7280">'+(i.note||'--')+'</td></tr>';
+    return'<tr style="'+rowBg+'"><td style="font-weight:600">'+i.med+'</td><td style="font-family:monospace;font-size:11px">'+i.lot+'</td><td style="font-size:12px">'+(i.rep||'--')+'</td><td style="text-align:center">'+i.expected+' '+plural(i.expected,i.unit)+'</td><td style="text-align:center">'+(i.actual===null?'--':i.actual+' '+plural(i.actual,i.unit))+'</td><td style="text-align:center;font-weight:700;color:'+diffColor+'">'+diffStr+'</td><td style="font-size:12px;color:#6b7280">'+(i.note||'--')+'</td></tr>';
   }).join('');
   var name=CONFIG.staffNames[c.conducted_by]||c.conducted_by;
   var win=window.open('','_blank','width=900,height=600');
