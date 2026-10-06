@@ -951,7 +951,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-10-06b'; 
+var APP_VERSION='2026-10-06c'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -2645,7 +2645,7 @@ function renderCheckItems(){
       '<td style="font-family:monospace;font-size:11px">'+item.lot+'</td>'+
       '<td style="font-size:12px">'+(item.rep||'--')+'</td>'+
       '<td style="font-size:11px;color:var(--muted)">'+(item.lastChecked?fmtD(item.lastChecked):'<span style="color:#dc2626;font-weight:600">Never</span>')+'</td>'+
-      '<td style="text-align:center;font-weight:600">'+(item.revealed?item.expected+' '+item.unit:'<span style="filter:blur(5px);user-select:none">???</span>')+'</td>'+
+      '<td style="text-align:center;font-weight:600">'+(item.revealed?item.expected+' '+plural(item.expected,item.unit):'<span style="filter:blur(5px);user-select:none">???</span>')+'</td>'+
       '<td><input type="number" min="0" value="'+(item.actual===''?'':item.actual)+'" placeholder="Count" oninput="updateCheckItem('+idx+',\'actual\',this.value)" style="text-align:center;font-size:14px;font-weight:600;border:2px solid '+(diff===null?'var(--border)':diff<0?'#fca5a5':diff===0?'#86efac':'#fcd34d')+';border-radius:var(--radius);padding:6px"/></td>'+
       '<td style="text-align:center;font-weight:700;color:'+diffColor+'">'+diffStr+'</td>'+
       '<td><input type="text" value="'+(item.note||'')+'" placeholder="'+(diff!==null&&diff<0?'Required -- explain shortage':'Optional')+'" oninput="updateCheckItem('+idx+',\'note\',this.value)" style="font-size:12px;border-color:'+(diff!==null&&diff<0&&!item.note?'#fca5a5':'var(--border)')+'" /></td>'+
@@ -2716,7 +2716,7 @@ function showCheckDetail(id){
     var diff=i.discrepancy;var diffStr=diff===null?'Not counted':(diff>0?'+'+diff:String(diff));
     var rowBg=diff===null?'':diff<0?'background:#fff5f5':diff===0?'background:#f0fdf4':'background:#fffbeb';
     var diffColor=diff===null?'#6b7280':diff<0?'#dc2626':diff===0?'#166534':'#d97706';
-    return'<tr style="'+rowBg+'"><td style="font-weight:600">'+i.med+'</td><td style="font-family:monospace;font-size:11px">'+i.lot+'</td><td style="font-size:12px">'+(i.rep||'--')+'</td><td style="text-align:center">'+i.expected+' '+i.unit+'</td><td style="text-align:center">'+(i.actual===null?'--':i.actual+' '+i.unit)+'</td><td style="text-align:center;font-weight:700;color:'+diffColor+'">'+diffStr+'</td><td style="font-size:12px;color:#6b7280">'+(i.note||'--')+'</td></tr>';
+    return'<tr style="'+rowBg+'"><td style="font-weight:600">'+i.med+'</td><td style="font-family:monospace;font-size:11px">'+i.lot+'</td><td style="font-size:12px">'+(i.rep||'--')+'</td><td style="text-align:center">'+i.expected+' '+plural(i.expected,i.unit)+'</td>'<td style="text-align:center">'+(i.actual===null?'--':i.actual+' '+plural(i.actual,i.unit))+'</td><td style="text-align:center;font-weight:700;color:'+diffColor+'">'+diffStr+'</td><td style="font-size:12px;color:#6b7280">'+(i.note||'--')+'</td></tr>';
   }).join('');
   var name=CONFIG.staffNames[c.conducted_by]||c.conducted_by;
   var win=window.open('','_blank','width=900,height=600');
@@ -2969,8 +2969,8 @@ function openCosignModal(){
     var diffStr=diff===null?'--':(diff>0?'+'+diff:String(diff));
     html+='<tr style="'+rowBg+'"><td style="font-weight:600">'+i.med+'</td><td style="font-family:monospace;font-size:11px">'+i.lot+'</td>'+
       '<td style="font-size:12px">'+(i.rep||'--')+'</td>'+
-      '<td style="text-align:center">'+i.expected+' '+(i.unit||'')+'</td>'+
-      '<td style="text-align:center;font-weight:700">'+(i.actual===null?'<span style="color:var(--muted);font-style:italic">Not counted</span>':i.actual+' '+(i.unit||''))+'</td>'+
+      '<td style="text-align:center">'+i.expected+' '+plural(i.expected,i.unit)+'</td>'+
+      '<td style="text-align:center;font-weight:700">'+(i.actual===null?'<span style="color:var(--muted);font-style:italic">Not counted</span>':i.actual+' '+plural(i.actual,i.unit))+'</td>'+
       '<td style="text-align:center;font-weight:700;color:'+diffColor+'">'+diffStr+'</td>'+
       '<td style="font-size:12px;color:var(--muted)">'+(i.note||'--')+'</td></tr>';
   });
@@ -3343,7 +3343,7 @@ function _showConfig(){
 var _updateAvailable=false; 
 function _isBusy(){   
   if(editingId)return true;   
-  var fields=['f-lot','f-mrn','f-notes','si-lot','si-med','dp-lot','rc-lot'];   
+  var fields=['f-lot','f-mrn','f-notes','si-lot','dp-lot','rc-lot'];   
   if(fields.some(function(id){var el=document.getElementById(id);return el&&el.value.trim();}))return true;   
   var modals=['invcheck-modal','cosign-modal','si-edit-modal','init-inventory-modal','config-editor-modal','recall-impact-modal','start-check-modal','check-setup-modal','prefs-modal','preset-modal','pin-modal'];   
   return modals.some(function(id){var el=document.getElementById(id);return el&&el.style.display&&el.style.display!=='none';}); 
