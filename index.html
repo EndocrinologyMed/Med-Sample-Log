@@ -110,7 +110,7 @@ tr:hover td{background:#f0f5ff}
 .preset-chip:hover{background:var(--accent);color:#fff}
 .milestone-toast{position:fixed;bottom:80px;right:20px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:14px 20px;border-radius:var(--radius-lg);font-size:13px;z-index:300;opacity:0;transition:opacity .4s;pointer-events:none;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.3)}
 .milestone-toast.show{opacity:1}
-#toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.95);background:#1f2937;color:#fff;padding:20px 32px;border-radius:14px;font-size:20px;font-weight:600;text-align:center;z-index:390;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;box-shadow:0 10px 40px rgba(0,0,0,.35);max-width:90vw;line-height:1.4}
+#toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.95);background:#1f2937;color:#fff;padding:20px 32px;border-radius:14px;font-size:20px;font-weight:600;text-align:center;z-index:1002;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;box-shadow:0 10px 40px rgba(0,0,0,.35);max-width:90vw;line-height:1.4}
 #toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
 .accent-swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all .15s;display:inline-block}
 .accent-swatch.active{border-color:var(--text);transform:scale(1.15)}
@@ -951,7 +951,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-10-06a'; 
+var APP_VERSION='2026-10-06b'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -1968,7 +1968,7 @@ function addStockIn(){
     if(similar&&!confirm('"'+med+'" looks similar to existing "'+similar+'". Click OK to use the new name, or Cancel to go back and pick from the suggestions.')){return;}
   }
   var entry={id:'SI-'+String(nextS++).padStart(4,'0')+ID_SUFFIX,date:today(),med:med,lot:lot,exp:exp,qtyReceived:qty,unit:document.getElementById('si-unit').value,rep:loc};
-  DB.stockIn.push(entry);sbSaveStockIn(entry);save();populateMedLists();renderInventory();renderRecentLots();toast('Recorded: '+qty+'x '+med+' (Lot '+lot+')');
+  DB.stockIn.push(entry);sbSaveStockIn(entry);save();populateMedLists();renderInventory();renderRecentLots();toast('Received: '+qty+' '+plural(qty,entry.unit)+' of '+med+' -- Lot '+lot);document.getElementById('si-lot').value='';document.getElementById('si-exp').value='';document.getElementById('si-qty').value='';document.getElementById('si-lot').focus();
 }
 function computeInv(){
   var map={},list=[],baseline=CONFIG.inventoryBaselineDate||null;
