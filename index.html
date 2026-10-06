@@ -110,8 +110,8 @@ tr:hover td{background:#f0f5ff}
 .preset-chip:hover{background:var(--accent);color:#fff}
 .milestone-toast{position:fixed;bottom:80px;right:20px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:14px 20px;border-radius:var(--radius-lg);font-size:13px;z-index:300;opacity:0;transition:opacity .4s;pointer-events:none;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.3)}
 .milestone-toast.show{opacity:1}
-#toast{position:fixed;bottom:20px;right:20px;background:#1f2937;color:#fff;padding:10px 16px;border-radius:var(--radius);font-size:13px;z-index:300;opacity:0;transition:opacity .3s;pointer-events:none}
-#toast.show{opacity:1}
+#toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.95);background:#1f2937;color:#fff;padding:20px 32px;border-radius:14px;font-size:20px;font-weight:600;text-align:center;z-index:390;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;box-shadow:0 10px 40px rgba(0,0,0,.35);max-width:90vw;line-height:1.4}
+#toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
 .accent-swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all .15s;display:inline-block}
 .accent-swatch.active{border-color:var(--text);transform:scale(1.15)}
 .personal-banner{background:linear-gradient(135deg,var(--accent),var(--accent-dk));color:#fff;border-radius:var(--radius-lg);padding:20px 24px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
@@ -951,7 +951,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-10-05a'; 
+var APP_VERSION='2026-10-06a'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -1225,7 +1225,7 @@ function _positionTip(event){
   tip.style.left=x+'px';tip.style.top=y+'px';
 }
 document.addEventListener('mousemove',function(e){var tip=document.getElementById('note-tooltip');if(tip&&tip.style.display==='block')_positionTip(e);});
-function toast(msg,dur){dur=dur||2500;var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},dur);}
+var _toastT=null;function toast(msg,dur){dur=dur||2500;var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(_toastT);_toastT=setTimeout(function(){t.classList.remove('show');},dur);}
 function milestoneToast(msg){var t=document.getElementById('milestone-toast');t.innerHTML=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},4000);}
 
 // ── PREFERENCES ──────────────────────────────────────────────
@@ -2090,7 +2090,7 @@ function renderInventory(){
       '<td class="no-print" style="white-space:nowrap;display:flex;gap:4px;flex-wrap:wrap;padding:6px 8px">'+
         '<button class="btn btn-ghost btn-sm" onclick="editStockIn(\''+jsArg(b.id)+'\')" style="'+(canInv?'':'opacity:.35;cursor:not-allowed')+'">Edit</button>'+
         (canDispose&&rem>0?' <button class="btn btn-success btn-sm" onclick="disposeFromBucket(\''+jsArg(b.key)+'\')">Dispose</button>':'')+
-        ' <button class="btn btn-danger btn-sm" onclick="deleteStockIn(\''+jsArg(b.id)+'\')" title="'+(canInv?'Permanently remove from inventory':'Admin only')+'" style="'+(canInv?'':'opacity:.35;cursor:not-allowed')+'">Remove</button>'+
+        ' <button class="btn btn-ghost btn-sm" onclick="invShowReceipts(\''+jsArg(b.lot)+'\')" title="See every receipt for this lot (and remove a mistaken one)">Receipts</button>'+
       '</td></tr>';
   });
   c.innerHTML=html+'</tbody></table></div>'+hiddenNote;
@@ -2102,6 +2102,26 @@ function invShowMedLots(name){
   var s=document.getElementById('inv-search');if(s)s.value=name;
   renderInventory();
 }
+function invShowReceipts(lot){var s=document.getElementById('rcv-search');if(s)s.value=lot;renderReceiving();invJump('receiving-card');}
+function removeReceipt(id){
+  if(!canEditInventory()){denyMsg('remove receipts');return;}
+  var s=DB.stockIn.find(function(x){return x.id===id;});if(!s)return;
+  var b=findBucket(bucketKey(s.med,s.lot,s.rep)),after=b?b.remaining-(parseInt(s.qtyReceived)||0):0;
+  var who=s.receivedBy?(CONFIG.staffNames[s.receivedBy]||s.receivedBy):'not recorded';
+  var when=s.created_at?new Date(s.created_at).toLocaleString():fmtD(s.date);
+  var msg='Remove this receipt?\n\n'+id+'\n'+s.qtyReceived+' '+plural(s.qtyReceived,s.unit)+' of '+s.med+' -- Lot '+normLot(s.lot)+'\n'+(s.rep||'no location')+'\nReceived '+when+' by '+who+'\n\nThis lot/location will then show '+after+' on hand.';
+  if(after<0)msg+='\n\n\u26A0 That is BELOW ZERO -- some of these units were already dispensed or disposed. Only remove this if you are sure it was entered by mistake.';
+  requirePin(function(){
+    if(!confirm(msg))return;
+    var reason=prompt('Reason for removing (required), e.g. "Double entry of SI-0470":');
+    if(!reason||!reason.trim()){toast('Not removed -- a reason is required.');return;}
+    DB.stockIn=DB.stockIn.filter(function(x){return x.id!==id;});
+    var ar={ts:new Date().toISOString(),action:'inv-delete',id:id,field:'receipt removed',before:s.qtyReceived+' '+(s.unit||'')+' '+s.med+' -- Lot '+normLot(s.lot)+' -- '+(s.rep||'no location')+' (received by '+(s.receivedBy||'?')+')',after:'REMOVED -- '+reason.trim(),by:sessionStaff()||'?'};
+    DB.auditLog.unshift(ar);sbDeleteStockIn(id);sbSaveAudit(ar);
+    save();renderInventory();renderRecentLots();populateMedLists();updateStats();updateBadge();
+    toast('Receipt '+id+' removed -- audit record kept.');
+  });
+}
 function renderReceiving(){
   var el=document.getElementById('rcv-list');if(!el)return;
   var q=((document.getElementById('rcv-search')||{}).value||'').toLowerCase();
@@ -2109,13 +2129,13 @@ function renderReceiving(){
   if(q)rows=rows.filter(function(s){var w=s.receivedBy||'';return (s.med+' '+s.lot+' '+(s.rep||'')+' '+w+' '+(CONFIG.staffNames[w]||'')+' '+s.id).toLowerCase().indexOf(q)>=0;});
   var total=rows.length;rows=rows.slice(0,100);
   if(!rows.length){el.innerHTML='<p style="font-size:12px;color:var(--muted);text-align:center;padding:16px">No receipts found.</p>';return;}
-  el.innerHTML='<div class="tbl-wrap"><table><thead><tr><th>Received</th><th>By</th><th>ID</th><th>Medication</th><th>Lot #</th><th>Qty</th><th>Location</th><th>Expiry</th></tr></thead><tbody>'+
+  el.innerHTML='<div class="tbl-wrap"><table><thead><tr><th>Received</th><th>By</th><th>ID</th><th>Medication</th><th>Lot #</th><th>Qty</th><th>Location</th><th>Expiry</th>'+(canEditInventory()?'<th class="no-print"></th>':'')+'</tr></thead><tbody>'+
     rows.map(function(s){
       var who=s.receivedBy?'<span title="'+esc(CONFIG.staffNames[s.receivedBy]||'')+'" style="font-family:monospace;font-weight:700">'+esc(s.receivedBy)+'</span>':'<span style="color:var(--muted);font-size:11px">not recorded</span>';
       var when=s.created_at?new Date(s.created_at).toLocaleString([],{month:'2-digit',day:'2-digit',year:'2-digit',hour:'numeric',minute:'2-digit'}):fmtD(s.date);
       return '<tr><td style="font-size:11px">'+esc(when)+'</td><td>'+who+'</td><td style="font-family:monospace;font-size:10px;color:var(--muted)">'+esc(s.id)+'</td>'+
         '<td style="font-weight:600">'+esc(s.med)+'</td><td style="font-family:monospace;font-size:11px">'+esc(s.lot)+'</td>'+
-        '<td>'+esc(s.qtyReceived)+' '+esc(plural(s.qtyReceived,s.unit))+'</td><td style="font-size:12px">'+esc(s.rep||'--')+'</td><td>'+expBadge(s.exp)+'</td></tr>';
+        '<td>'+esc(s.qtyReceived)+' '+esc(plural(s.qtyReceived,s.unit))+'</td><td style="font-size:12px">'+esc(s.rep||'--')+'</td><td>'+expBadge(s.exp)+'</td>'+(canEditInventory()?'<td class="no-print"><button class="btn btn-danger btn-sm" onclick="removeReceipt(\''+jsArg(s.id)+'\')">Remove</button></td>':'')+'</tr>';
     }).join('')+'</tbody></table></div>'+
     (total>100?'<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing newest 100 of '+total+' \u2014 search to narrow.</p>':'');
 }
