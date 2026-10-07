@@ -951,7 +951,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-10-06e'; 
+var APP_VERSION='2026-10-07a'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -2030,7 +2030,7 @@ function renderInventory(){
     var list=order.map(function(k){return meds[k];});
     if(q)list=list.filter(function(m){return m.name.toLowerCase().indexOf(q)>=0||m.lotList.some(function(l){return l.toLowerCase().indexOf(q)>=0;});});
     if(statusF)list=list.filter(function(m){return statusF==='neg'?m.neg:m.cls===statusF;});
-    var hid=0;if(!showEmpty&&statusF!=='danger'){var n1=list.length;list=list.filter(function(m){return m.rem>0;});hid=n1-list.length;}
+    var hid=0;if(!showEmpty&&statusF!=='danger'&&statusF!=='neg'){var n1=list.length;list=list.filter(function(m){return m.rem>0;});hid=n1-list.length;}
     var note=hid?'<p style="font-size:11px;color:var(--muted);margin-top:8px">'+hid+' medication'+(hid===1?'':'s')+' with nothing left hidden \u2014 tick "Show empty lots" to see them.</p>':'';
     if(!list.length){c.innerHTML='<p style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No matching medications.</p>'+note;renderThresholds();renderReceiving();return;}
     var grand=list.reduce(function(s,m){return s+m.rem;},0);
@@ -2740,8 +2740,7 @@ function showCheckDetail(id){
     var diff=i.discrepancy;var diffStr=diff===null?'Not counted':(diff>0?'+'+diff:String(diff));
     var rowBg=diff===null?'':diff<0?'background:#fff5f5':diff===0?'background:#f0fdf4':'background:#fffbeb';
     var diffColor=diff===null?'#6b7280':diff<0?'#dc2626':diff===0?'#166534':'#d97706';
-    return'<tr style="'+rowBg+'"><td style="font-weight:600">'+i.med+'</td><td style="font-family:monospace;font-size:11px">'+i.lot+'</td><td style="font-size:12px">'+(i.rep||'--')+'</td><td style="text-align:center">'+i.expected+'+plural(i.expected,i.unit)+'</td><td style="text-align:center">'+(i.actual===null?'--':i.actual+' '+plural(i.actual,i.unit))+'</td><td style="text-align:center;font-weight:700;color:'+diffColor+'">'+diffStr+'</td><td style="font-size:12px;color:#6b7280">'+(i.note||'--')+'</td></tr>';
-  }).join('');
+    return'<tr style="'+rowBg+'"><td style="font-weight:600">'+i.med+'</td><td style="font-family:monospace;font-size:11px">'+i.lot+'</td><td style="font-size:12px">'+(i.rep||'--')+'</td><td style="text-align:center">'+i.expected+' '+plural(i.expected,i.unit)+'</td><td style="text-align:center">'+(i.actual===null?'--':i.actual+' '+plural(i.actual,i.unit))+'</td><td style="text-align:center;font-weight:700;color:'+diffColor+'">'+diffStr+'</td><td style="font-size:12px;color:#6b7280">'+(i.note||'--')+'</td></tr>';  }).join('');
   var name=CONFIG.staffNames[c.conducted_by]||c.conducted_by;
   var win=window.open('','_blank','width=900,height=600');
   win.document.write('<html><head><title>Inventory Check '+c.id+'</title><style>body{font-family:-apple-system,sans-serif;font-size:13px;padding:20px}table{width:100%;border-collapse:collapse}th,td{padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:left}th{background:#f3f4f6;font-size:11px;text-transform:uppercase;color:#6b7280}</style></head><body><h2>Inventory Check '+c.id+'</h2><p>Date: <strong>'+fmtD(c.date)+'</strong> &nbsp; Conducted by: <strong>'+name+'</strong> &nbsp; Discrepancies: <strong>'+c.discrepancies+'</strong></p>'+(c.notes?'<p>Notes: '+c.notes+'</p>':'')+'<table><thead><tr><th>Medication</th><th>Lot #</th><th>Location</th><th>Expected</th><th>Counted</th><th>Difference</th><th>Note</th></tr></thead><tbody>'+rows+'</tbody></table><p style="margin-top:20px;font-size:11px;color:#6b7280">Endocrinology Associates -- Medication Sample Log</p></body></html>');
