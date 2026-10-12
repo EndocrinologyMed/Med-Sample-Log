@@ -951,7 +951,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-10-07a'; 
+var APP_VERSION='2026-10-12a'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -1411,6 +1411,11 @@ function startSessionTimer(minutes){
   if(_sessionTimeoutMs){['click','keydown','touchstart'].forEach(function(ev){document.addEventListener(ev,resetSessionTimer,{passive:true});});resetSessionTimer();}
 }
 // ── DEVICE SIGN-IN (clinic Supabase account, once per computer) ─────
+async function loadClinicConfigEarly(){
+  try{var r=await _db.from('settings').select('value').eq('key','clinic_config').maybeSingle();
+    if(r.data&&r.data.value){applyClinicConfig(r.data.value);repopulateDropdowns();}}
+  catch(e){console.warn('Could not load clinic settings before sign-in:',e);}
+}
 function showDeviceScreen(){var d=document.getElementById('device-screen');if(d)d.style.display='flex';}
 async function checkDeviceSession(){
   try{var r=await _db.auth.getSession();if(r.data&&r.data.session){document.getElementById('device-screen').style.display='none';return true;}}catch(e){}
@@ -1426,7 +1431,7 @@ async function deviceSignIn(){
   if(r.error){err.textContent='Sign-in failed: '+r.error.message;return;}
   document.getElementById('dev-pass').value='';
   document.getElementById('device-screen').style.display='none';
-  toast('This computer is signed in.');
+  toast('This computer is signed in.');loadClinicConfigEarly();
 }
 async function deviceSignOut(){await _db.auth.signOut();signOut();showDeviceScreen();}
 _db.auth.onAuthStateChange(function(ev){if(ev==='SIGNED_OUT')showDeviceScreen();});
@@ -3191,14 +3196,17 @@ async function saveClinicConfig(){
     sessionTimeoutMinutes:CONFIG.sessionTimeoutMinutes,recallChecklist:CONFIG.recallChecklist,
     staff:CONFIG.staff,staffNames:CONFIG.staffNames,roles:CONFIG.roles,userPins:CONFIG.userPins,
     inventoryBaselineDate:CONFIG.inventoryBaselineDate};
+  var _qb=JSON.parse(localStorage.getItem('sb_write_queue')||'[]').length;
   await sbWrite('settings','upsert',{key:'clinic_config',value:cfg});
+  var _cfgQueued=JSON.parse(localStorage.getItem('sb_write_queue')||'[]').length>_qb;
+  if(_cfgQueued)alert('Settings could NOT be saved to the database right now. They are queued and will retry automatically.\n\nDo not hand out a new PIN until this saves -- click Save all changes again in a minute.');
   var ar={ts:new Date().toISOString(),action:'config-edit',id:'CONFIG',field:'clinic_config',before:'--',after:'Config updated by '+sessionStaff(),by:sessionStaff()};
   DB.auditLog.unshift(ar);sbSaveAudit(ar);
   repopulateDropdowns();
   updateStats();updateBadge();renderAlerts();
   var lsEl=document.getElementById('cfg-last-saved');if(lsEl)lsEl.textContent='Saved '+new Date().toLocaleTimeString();
   if(btn){btn.innerHTML='&#128190; Save all changes';btn.disabled=false;}
-  toast('Configuration saved — changes are live for all users');
+  toast(_cfgQueued?'Settings queued -- not saved yet':'Configuration saved — changes are live for all users');
 }
 
 
@@ -3406,7 +3414,7 @@ function init(){
   // Seed med datalists
   ['ml1','ml2','ml3','ml4'].forEach(function(id){var dl=document.getElementById(id);if(!dl)return;MEDS.forEach(function(m){var o=document.createElement('option');o.value=m.name;dl.appendChild(o);});});
    if(!sessionStaff())localStorage.removeItem('endo_db2');
-   checkDeviceSession();
+   checkDeviceSession().then(function(ok){if(ok)loadClinicConfigEarly();});
      _sbDot('#fbbf24','connecting...');
   startUpdateChecker();
 }
