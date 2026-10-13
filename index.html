@@ -951,7 +951,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-10-12a'; 
+var APP_VERSION='2026-10-13a'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -1045,6 +1045,7 @@ async function loadFromSupabase(){
       });
     }
     var dAl=(res[5].data||[]).find(function(x){return x.key==='dismissed_alerts';});DISMISSED=(dAl&&dAl.value)||{};
+    var fl=(res[5].data||[]).find(function(x){return x.key==='fda_lot_check';});window._fdaLot=(fl&&fl.value)||{ts:0,hits:[]};mergeFdaLotHits();
     try{var icRes=await _db.from('inventory_checks').select('*').order('created_at',{ascending:false});DB.inventoryChecks=icRes.data||[];}
     catch(e){console.warn('inventory_checks table missing -- create it in Supabase.');DB.inventoryChecks=[];}
     if(DB.entries.length)nextE=Math.max.apply(null,DB.entries.map(function(x){return parseInt((x.id||'').replace('MS-',''))||0;}))+1;
@@ -1948,7 +1949,7 @@ function updateBadge(){
   var inv=computeInv();
   var n=inv.filter(function(i){var d=daysTo(i.exp);return d>=0&&d<=CONFIG.expiryWarnDays&&(i.received-i.dispensed)>0;}).length+
     DB.recalls.filter(function(r){return r.active;}).length+
-    (DB.fdaRecalls||[]).filter(function(r){return !r.dismissed;}).length+overLimitPatients().filter(function(p){return !isDismissed('limit:'+mrnKey(p.mrn)+':'+p.count);}).length+inv.filter(function(i){return i.remaining<0&&!isDismissed('neg:'+i.key+':'+i.remaining);}).length;
+    (DB.fdaRecalls||[]).filter(fdaAlertVisible).length+overLimitPatients().filter(function(p){return !isDismissed('limit:'+mrnKey(p.mrn)+':'+p.count);}).length+inv.filter(function(i){return i.remaining<0&&!isDismissed('neg:'+i.key+':'+i.remaining);}).length;
   var b=document.getElementById('badge-alerts');if(n>0){b.textContent=n;b.classList.remove('hidden');}else b.classList.add('hidden');
 }
 function exportCSV(){
@@ -2326,8 +2327,17 @@ function renderAlerts(){
     al.push({cls:'danger',icon:'&#128680;',title:'RECALL ACTIVE: '+(r.med||'Medication')+' -- Lot '+r.lot,sub:(r.reason||'No reason')+' -- '+cnt+' entr'+(cnt===1?'y':'ies')+' -- Filed '+fmtD(r.date)+' -- '+done+'/'+total+' actions complete',rcId:r.id,rcLot:r.lot,emailFailed:!!r.emailFailed});
   });
   overLimitPatients().forEach(function(p){var dk='limit:'+mrnKey(p.mrn)+':'+p.count;window._alertLabels[dk]='Over sample limit: MRN '+p.mrn+' ('+p.count+' samples in '+CONFIG.sampleLimitDays+' days)';if(isDismissed(dk)){dismissedList.push(dk);return;}al.push({cls:'warn',icon:'&#9888;',title:'Over '+CONFIG.sampleLimitDays+'-day sample limit: MRN '+p.mrn,sub:p.count+' samples in past '+CONFIG.sampleLimitDays+' days (limit: '+CONFIG.sampleLimitCount+')',dismissKey:dk});});
-  (DB.fdaRecalls||[]).filter(function(r){return !r.dismissed;}).forEach(function(r){
-    var cls=r.classification||'',severity=fdaClassOf(cls)==='I'?'danger':'warn';
+    (DB.fdaRecalls||[]).forEach(function(r){
+    var cls=r.classification||'',ml=r.matchedLots||[];
+    if(ml.length){
+      if(fdaLotFlagged(r))return;
+      var dk=fdaLotKey(r);window._alertLabels[dk]='FDA recall '+r.recall_number+' matches your lot '+ml.join(', ');
+      if(isDismissed(dk)){dismissedList.push(dk);return;}
+      al.unshift({cls:'danger',icon:'&#128680;',title:'FDA RECALL MATCHES YOUR LOT '+esc(ml.join(', '))+fdaClassBadge(cls),sub:esc(r.firm||'Unknown firm')+' -- '+esc((r.product||'').slice(0,120))+' -- Reason: '+esc((r.reason||'').slice(0,160)),fdaNum:r.recall_number,fdaLots:r.lots,dismissKey:dk,invLot:ml[0],lotMatch:true});
+      return;
+    }
+    if(r.dismissed)return;
+    var severity=fdaClassOf(cls)==='I'?'danger':'warn';
     al.push({cls:severity,icon:'&#128276;',title:'FDA recall: '+esc(r.firm||'Unknown firm')+fdaClassBadge(cls),sub:esc((r.product||'').slice(0,120))+'...',fdaNum:r.recall_number,fdaLots:r.lots});
   });
   var alEl=document.getElementById('alerts-list');
@@ -2337,7 +2347,7 @@ function renderAlerts(){
     if(a.rcLot)btns+='<button class="btn btn-sm btn-ghost no-print" onclick="exportRecallMRNs(\''+a.rcLot.replace(/'/g,"\\'")+'\')">Export MRNs</button> ';
     if(a.emailFailed)btns+='<button class="btn btn-sm btn-danger no-print" onclick="openRecallMailto(\''+a.rcId.replace(/'/g,"\\'")+'\')" title="Email alert failed — click to send manually">&#9888; Send email manually</button> <button class="btn btn-sm btn-ghost no-print" onclick="copyRecallText(\''+a.rcId.replace(/'/g,"\\'")+'\')" title="Copy recall details to clipboard">&#128203; Copy</button> ';
     if(a.rcId)btns+='<button class="btn btn-sm btn-ghost no-print" onclick="showRecallImpact(\''+a.rcId+'\')">View Checklist</button> <button class="btn btn-sm btn-success no-print" onclick="resolveRecall(\''+a.rcId+'\')">Resolve</button>';
-    if(a.fdaNum)btns+='<button class="btn btn-sm btn-danger no-print" onclick="flagFDAAsRecall(\''+a.fdaNum.replace(/'/g,"\\'")+'\')">Flag</button> <button class="btn btn-sm btn-ghost no-print" onclick="dismissFDA(\''+a.fdaNum.replace(/'/g,"\\'")+'\')">Dismiss</button>';
+    if(a.fdaNum)btns+='<button class="btn btn-sm btn-danger no-print" onclick="flagFDAAsRecall(\''+a.fdaNum.replace(/'/g,"\\'")+'\')">Flag</button>'+(a.lotMatch?'':' <button class="btn btn-sm btn-ghost no-print" onclick="dismissFDA(\''+a.fdaNum.replace(/'/g,"\\'")+'\')">Dismiss</button>');
     if(a.disposeBtn)btns+=' <button class="btn btn-sm btn-danger no-print" onclick="openDisposalForLot(\''+a.disposeBtn.lot.replace(/'/g,"\\'")+'\',\''+a.disposeBtn.med.replace(/'/g,"\\'")+'\')">Record Disposal</button>';
     if(a.snoozeKey)btns+=' <button class="btn btn-sm btn-ghost no-print" onclick="snoozeAlert(\''+a.snoozeKey.replace(/'/g,"\\'")+'\')">Snooze today</button>';
     if(a.invLot)btns+=' <button class="btn btn-sm btn-ghost no-print" onclick="showLotInInventory(\''+jsArg(a.invLot)+'\')">Show in inventory</button>';
@@ -2779,12 +2789,60 @@ async function checkFDA(manual){
       });
     }catch(err){errors++;console.warn('FDA batch '+b+' failed:',err);}
   }
-  if(newCount>0){save();updateBadge();}
+    await checkFDALots(!!manual);if(newCount>0)save();updateBadge();
   var msg='FDA: checked '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+' -- '+newCount+' new ('+terms.length+' terms, 1yr lookback)';
   if(errors>0)msg+=' -- '+errors+' batch'+(errors===1?'':'es')+' failed';
+  var lc=window._fdaLot||{},lh=(lc.hits||[]).length;msg+=' | Lot check: '+lh+' match'+(lh===1?'':'es')+' across '+(lc.lotsChecked||0)+' lots'+(lc.ts?' ('+new Date(lc.ts).toLocaleString([],{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})+')':'')+(lc.errors?' -- some lot batches failed, will retry':'');
   if(statusEl)statusEl.textContent=msg;
   localStorage.setItem('fdaLastCheck',Date.now());
   if(document.getElementById('tab-alerts').classList.contains('active'))renderAlerts();
+}
+function fdaLotKey(r){return 'fdalot:'+r.recall_number+':'+(r.matchedLots||[]).join(',');}
+function fdaLotFlagged(r){return (r.matchedLots||[]).every(function(l){return DB.recalls.some(function(x){return normLot(x.lot)===normLot(l);});});}
+function fdaAlertVisible(r){var ml=r.matchedLots||[];if(ml.length)return !fdaLotFlagged(r)&&!isDismissed(fdaLotKey(r));return !r.dismissed;}
+function mergeFdaLotHits(){
+  if(!DB.fdaRecalls)DB.fdaRecalls=[];
+  DB.fdaRecalls.forEach(function(r){r.matchedLots=[];});
+  ((window._fdaLot||{}).hits||[]).forEach(function(h){
+    var ex=DB.fdaRecalls.find(function(r){return r.recall_number===h.recall_number;});
+    if(ex){ex.matchedLots=(h.matchedLots||[]).slice();if(!ex.product){ex.product=h.product;ex.firm=h.firm;ex.reason=h.reason;ex.classification=h.classification;ex.lots=h.lots;}}
+    else DB.fdaRecalls.unshift(Object.assign({},h,{matchedLots:(h.matchedLots||[]).slice()}));
+  });
+}
+async function checkFDALots(force){
+  var st=window._fdaLot||{ts:0,hits:[]};
+  if(!force&&Date.now()-(st.ts||0)<6*3600000)return;
+  var cutoff=new Date();cutoff.setDate(cutoff.getDate()-365);var cut=cutoff.toISOString().slice(0,10);
+  var lots={};
+  computeInv().forEach(function(b){if(b.remaining>0)lots[normLot(b.lot)]=1;});
+  DB.entries.forEach(function(e){if(e.date>=cut&&e.lot)lots[normLot(e.lot)]=1;});
+  var list=Object.keys(lots).filter(function(l){return /^[A-Z0-9\-]{5,}$/.test(l);});
+  var since=new Date();since.setDate(since.getDate()-730);var sinceStr=since.toISOString().slice(0,10).replace(/-/g,'');
+  var hits={},errors=0;
+  for(var i=0;i<list.length;i+=15){
+    var batch=list.slice(i,i+15);
+    var q=batch.map(function(l){return encodeURIComponent('"'+l+'"');}).join('+OR+');
+    try{
+      var res=await fetch('https://api.fda.gov/drug/enforcement.json?search=code_info:('+q+')+AND+recall_initiation_date:['+sinceStr+'+TO+99991231]&limit=100');
+      if(res.status===404)continue; // no matches in this batch
+      if(!res.ok){errors++;continue;}
+      var json=await res.json();
+      (json.results||[]).forEach(function(r){
+        var txt=String(r.code_info||'').toUpperCase();
+        var m=batch.filter(function(l){return new RegExp('(^|[^A-Z0-9])'+l+'([^A-Z0-9]|$)').test(txt);});
+        if(!m.length)return;
+        var h=hits[r.recall_number]||(hits[r.recall_number]={recall_number:r.recall_number,date:r.recall_initiation_date||'',product:r.product_description||'',reason:r.reason_for_recall||'',firm:r.recalling_firm||'',classification:r.classification||'',lots:r.code_info||'',status:r.status||'',fetched:new Date().toISOString(),dismissed:false,matchedLots:[]});
+        m.forEach(function(l){if(h.matchedLots.indexOf(l)<0)h.matchedLots.push(l);});
+      });
+    }catch(err){errors++;console.warn('FDA lot batch failed:',err);}
+  }
+  if(errors){ // keep earlier results and try again next time
+    var old=(st.hits||[]).slice();
+    Object.keys(hits).forEach(function(k){if(!old.some(function(o){return o.recall_number===k;}))old.push(hits[k]);});
+    window._fdaLot={ts:st.ts||0,hits:old,lotsChecked:list.length,errors:errors};
+  }else window._fdaLot={ts:Date.now(),hits:Object.keys(hits).map(function(k){return hits[k];}),lotsChecked:list.length};
+  await sbWrite('settings','upsert',{key:'fda_lot_check',value:window._fdaLot});
+  mergeFdaLotHits();
 }
 async function dismissFDA(n){
   if(!DB.fdaRecalls)DB.fdaRecalls=[];
@@ -2800,7 +2858,7 @@ async function dismissFDA(n){
 function flagFDAAsRecall(n){
   if(currentRole()==='readonly'){denyMsg('flag recalls');return;}
   var r=(DB.fdaRecalls||[]).find(function(x){return x.recall_number===n;});if(!r)return;
-  var lot=normLot(prompt('Enter the lot number to flag:\n\n'+(r.lots||'Check FDA notice')));if(!lot)return;
+  var lot=normLot(prompt('Enter the lot number to flag:\n\n'+String(r.lots||'Check FDA notice').slice(0,600),(r.matchedLots||[])[0]||''));if(!lot)return;
   var med=(r.product||'').slice(0,60);
   var reason='FDA recall '+r.recall_number+' -- '+(r.reason||'').slice(0,120);
   var recall={id:'RC-'+String(nextR++).padStart(3,'0')+ID_SUFFIX,date:today(),lot:lot,med:med,reason:reason,active:true,patientActions:{},actionNotes:'',actionDate:'',actionBy:''};
@@ -3414,7 +3472,7 @@ function init(){
   // Seed med datalists
   ['ml1','ml2','ml3','ml4'].forEach(function(id){var dl=document.getElementById(id);if(!dl)return;MEDS.forEach(function(m){var o=document.createElement('option');o.value=m.name;dl.appendChild(o);});});
    if(!sessionStaff())localStorage.removeItem('endo_db2');
-   checkDeviceSession().then(function(ok){if(ok)loadClinicConfigEarly();});
+    checkDeviceSession().then(function(ok){if(ok)loadClinicConfigEarly();});
      _sbDot('#fbbf24','connecting...');
   startUpdateChecker();
 }
