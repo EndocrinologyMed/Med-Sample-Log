@@ -1946,7 +1946,6 @@ function updateStats(){
   document.getElementById('s-limit').textContent=overLimitPatients().length;
 }
 function updateBadge(){renderAlerts();}
-}
 function exportCSV(){
   if(!DB.entries.length){alert('No entries to export.');return;}
   var headers=['ID','Date','Time','Medication','Brand','Lot #','Expiry','Qty','Unit','Physician','Rep','Staff','Patient MRN','Notes'];
