@@ -951,7 +951,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-10-13a'; 
+var APP_VERSION='2026-10-14a'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -1945,12 +1945,7 @@ function updateStats(){
   document.getElementById('s-recalls').textContent=DB.recalls.filter(function(r){return r.active;}).length;
   document.getElementById('s-limit').textContent=overLimitPatients().length;
 }
-function updateBadge(){
-  var inv=computeInv();
-  var n=inv.filter(function(i){var d=daysTo(i.exp);return d>=0&&d<=CONFIG.expiryWarnDays&&(i.received-i.dispensed)>0;}).length+
-    DB.recalls.filter(function(r){return r.active;}).length+
-    (DB.fdaRecalls||[]).filter(fdaAlertVisible).length+overLimitPatients().filter(function(p){return !isDismissed('limit:'+mrnKey(p.mrn)+':'+p.count);}).length+inv.filter(function(i){return i.remaining<0&&!isDismissed('neg:'+i.key+':'+i.remaining);}).length;
-  var b=document.getElementById('badge-alerts');if(n>0){b.textContent=n;b.classList.remove('hidden');}else b.classList.add('hidden');
+function updateBadge(){renderAlerts();}
 }
 function exportCSV(){
   if(!DB.entries.length){alert('No entries to export.');return;}
@@ -2341,6 +2336,7 @@ function renderAlerts(){
     al.push({cls:severity,icon:'&#128276;',title:'FDA recall: '+esc(r.firm||'Unknown firm')+fdaClassBadge(cls),sub:esc((r.product||'').slice(0,120))+'...',fdaNum:r.recall_number,fdaLots:r.lots});
   });
   var alEl=document.getElementById('alerts-list');
+  var _bdg=document.getElementById('badge-alerts');if(_bdg){if(al.length){_bdg.textContent=al.length;_bdg.classList.remove('hidden');}else _bdg.classList.add('hidden');}
   if(!al.length){alEl.innerHTML='<p style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No active alerts.</p>';}
   else{alEl.innerHTML=al.map(function(a){
     var btns='';
