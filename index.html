@@ -951,7 +951,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-10-14b'; 
+var APP_VERSION='2026-10-15a'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -1598,6 +1598,8 @@ function sessionStaff(){return sessionStorage.getItem('sessionStaff')||'';}
 function currentRole(){return CONFIG.roles[sessionStaff()]||'readonly';}
 function entryAgeHours(e){if(!e)return 0;var t=e.created_at?new Date(e.created_at):null;if(!t&&e.date){t=parseLocalDate(e.date);var hm=String(e.time||'00:00').split(':');t.setHours(+hm[0]||0,+hm[1]||0);}return t?(Date.now()-t)/3600000:0;}
 function canEditEntry(es,e){var r=currentRole();if(r==='admin')return true;if(r==='self')return !!es&&es===sessionStaff()&&entryAgeHours(e)<=24;return false;}
+function agoText(h){var m=Math.max(0,Math.round(h*60));if(m<1)return'just now';if(m<60)return m+' minute'+(m===1?'':'s')+' ago';var hr=Math.round(h);return hr+' hour'+(hr===1?'':'s')+' ago';}
+function rcvAgeHours(s){var t=s.created_at?new Date(s.created_at):parseLocalDate(s.date);return t?(Date.now()-t)/3600000:999;}
 function canDeleteEntry(){return currentRole()==='admin';}
 function canEditInventory(){return currentRole()==='admin';}
 function denyMsg(action){var who=sessionStaff();if(!who){toast('Please sign in first.');return;}var r=currentRole();if(r==='readonly')toast(who+' is read-only and cannot '+action+'.');else if(r==='self')toast(who+' can only '+(action==='delete'?'edit, not delete':action+' their own entries')+'.');}
@@ -1790,6 +1792,8 @@ function submitEntry(){
     var avail=b.remaining+back;
     if(avail<data.qty){alert('Not enough stock. Only '+Math.max(avail,0)+' '+plural(Math.max(avail,0),b.unit)+' left for Lot '+data.lot+' in '+(b.rep||'this location')+'.');return;}
   }
+  if(!editingId){var dup=DB.entries.find(function(e){return e.patientMrn&&mrnKey(e.patientMrn)===mrnKey(data.patientMrn)&&normLot(e.lot)===data.lot&&entryAgeHours(e)<=24;});
+    if(dup&&!confirm('Possible double entry\n\n'+dup.qty+' '+plural(dup.qty,dup.unit)+' of '+dup.med+' (Lot '+dup.lot+') was already logged for MRN '+dup.patientMrn+' by '+(CONFIG.staffNames[dup.staff]||dup.staff)+' '+agoText(entryAgeHours(dup))+' ('+dup.id+').\n\nOK = this is a separate sample, save it\nCancel = don\'t save'))return;}
   var limitOverride=0;
   if(!editingId){var prev=samplesInWindow(data.patientMrn,null);
     if(prev>=CONFIG.sampleLimitCount){if(!confirm('Sample limit: MRN '+data.patientMrn+' has '+prev+' samples in the past '+CONFIG.sampleLimitDays+' days. Save anyway?'))return;limitOverride=prev;}}
@@ -1969,6 +1973,8 @@ function addStockIn(){
     var similar=existingNames.find(function(n){return n.split(' ')[0].toLowerCase()===firstWord&&n.trim().toLowerCase()!==med.trim().toLowerCase();});
     if(similar&&!confirm('"'+med+'" looks similar to existing "'+similar+'". Click OK to use the new name, or Cancel to go back and pick from the suggestions.')){return;}
   }
+  var dupS=DB.stockIn.find(function(s){return normLot(s.lot)===lot&&(s.rep||'')===loc&&String(s.med||'').trim().toLowerCase()===med.toLowerCase()&&rcvAgeHours(s)<=24;});
+  if(dupS&&!confirm('Possible double entry\n\n'+dupS.qtyReceived+' '+plural(dupS.qtyReceived,dupS.unit)+' of '+dupS.med+' (Lot '+normLot(dupS.lot)+') was already received into '+loc+' by '+(CONFIG.staffNames[dupS.receivedBy]||dupS.receivedBy||'someone')+' '+agoText(rcvAgeHours(dupS))+' ('+dupS.id+').\n\nOK = this is a separate box, record it\nCancel = don\'t record'))return;
   var entry={id:'SI-'+String(nextS++).padStart(4,'0')+ID_SUFFIX,date:today(),med:med,lot:lot,exp:exp,qtyReceived:qty,unit:document.getElementById('si-unit').value,rep:loc};
   DB.stockIn.push(entry);sbSaveStockIn(entry);save();populateMedLists();renderInventory();renderRecentLots();toast('Received: '+qty+' '+plural(qty,entry.unit)+' of '+med+' -- Lot '+lot);document.getElementById('si-lot').value='';document.getElementById('si-exp').value='';document.getElementById('si-qty').value='';document.getElementById('si-lot').focus();
 }
@@ -2311,7 +2317,7 @@ function renderAlerts(){
       al.push({cls:'warn',icon:'&#128230;',title:'Low stock: '+med,sub:rem+' unit'+(rem===1?'':'s')+' remaining -- threshold '+thresh,snoozeKey:sk});}
   });
   var dismissedList=[];window._alertLabels={};
-  inv.filter(function(i){return i.remaining<0;}).forEach(function(i){var dk='neg:'+i.key+':'+i.remaining;window._alertLabels[dk]='Count below zero: '+i.med+' (Lot '+i.lot+') -- '+(i.rep||'No location')+' shows '+i.remaining;if(isDismissed(dk)){dismissedList.push(dk);return;}al.push({cls:'danger',icon:'&#10067;',title:'Count below zero: '+esc(i.med)+' (Lot '+esc(i.lot)+')',sub:esc(i.rep||'No location')+' -- shows '+i.remaining+'. More was logged out than received. Check for a missed receipt, a lot-number typo, or an entry logged under the wrong location.',dismissKey:dk,invLot:i.lot});});
+  inv.filter(function(i){return i.remaining<0;}).forEach(function(i){var dk='neg:'+i.key+':'+i.remaining;window._alertLabels[dk]='Count below zero: '+i.med+' (Lot '+i.lot+') -- '+(i.rep||'No location')+' shows '+i.remaining;if(isDismissed(dk)){dismissedList.push(dk);return;}if(isSnoozed('negsnz:'+i.key))return;al.push({cls:'danger',icon:'&#10067;',title:'Count below zero: '+esc(i.med)+' (Lot '+esc(i.lot)+')',sub:esc(i.rep||'No location')+' -- shows '+i.remaining+'. More was logged out than received. Check for a missed receipt, a lot-number typo, or an entry logged under the wrong location.',dismissKey:dk,invLot:i.lot,snoozeKey:'negsnz:'+i.key});});
   DB.recalls.filter(function(r){return r.active;}).forEach(function(r){
   var cnt=DB.entries.filter(function(e){return e.lot.trim().toLowerCase()===r.lot.trim().toLowerCase();}).length;
     var checklist=CONFIG.recallChecklist||[],seen={},patients=[];
@@ -2320,7 +2326,6 @@ function renderAlerts(){
     patients.forEach(function(k){var a=(r.patientActions||{})[k]||{};checklist.forEach(function(i){if(a[i]&&a[i].done)done++;});});
     al.push({cls:'danger',icon:'&#128680;',title:'RECALL ACTIVE: '+(r.med||'Medication')+' -- Lot '+r.lot,sub:(r.reason||'No reason')+' -- '+cnt+' entr'+(cnt===1?'y':'ies')+' -- Filed '+fmtD(r.date)+' -- '+done+'/'+total+' actions complete',rcId:r.id,rcLot:r.lot,emailFailed:!!r.emailFailed});
   });
-  overLimitPatients().forEach(function(p){var dk='limit:'+mrnKey(p.mrn)+':'+p.count;window._alertLabels[dk]='Over sample limit: MRN '+p.mrn+' ('+p.count+' samples in '+CONFIG.sampleLimitDays+' days)';if(isDismissed(dk)){dismissedList.push(dk);return;}al.push({cls:'warn',icon:'&#9888;',title:'Over '+CONFIG.sampleLimitDays+'-day sample limit: MRN '+p.mrn,sub:p.count+' samples in past '+CONFIG.sampleLimitDays+' days (limit: '+CONFIG.sampleLimitCount+')',dismissKey:dk});});
     (DB.fdaRecalls||[]).forEach(function(r){
     var cls=r.classification||'',ml=r.matchedLots||[];
     if(ml.length){
