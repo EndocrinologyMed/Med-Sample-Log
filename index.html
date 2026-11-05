@@ -617,7 +617,26 @@ tr:hover td{background:#f0f5ff}
     </div>
     <div style="padding:16px 20px">
       <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Enter your <strong>physical count</strong>. Expected counts reveal automatically after you enter each count.</p>
-      <div id="invcheck-items"></div>
+<div id="invcheck-items"></div>
+<div class="no-print" style="margin-top:10px">
+  <button type="button" class="btn btn-ghost btn-sm" id="ic-add-btn" onclick="openAddUnlisted()">+ Add lot not listed</button>
+  <div id="ic-add-panel" class="intake-panel hidden">
+    <div style="font-size:13px;font-weight:600;color:var(--amber);margin-bottom:8px">Lot found on the shelf but not on this list</div>
+    <div class="fg">
+      <div class="field"><label>Lot # <span class="req">*</span></label><input id="ic-add-lot" style="text-transform:uppercase" oninput="icAddLotFill(this.value)"/></div>
+      <div class="field"><label>Medication <span class="req">*</span></label><input id="ic-add-med" list="ml2"/></div>
+      <div class="field"><label>Location <span class="req">*</span></label><select id="ic-add-rep"></select></div>
+      <div class="field"><label>Unit</label><select id="ic-add-unit"><option>bottle</option><option>pen</option><option>vial</option><option>box</option><option>tablet</option><option>patch</option><option>kit</option></select></div>
+      <div class="field"><label>Expiration</label><input id="ic-add-exp" type="date"/></div>
+      <div class="field"><label>Physical count <span class="req">*</span></label><input id="ic-add-count" type="number" min="0"/></div>
+    </div>
+    <div class="field" style="margin-top:8px"><label>Note <span class="req">*</span></label><input id="ic-add-note" placeholder="e.g. Found in Big Fridge, never received into the log"/></div>
+    <div class="actions">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="cancelAddUnlisted()">Cancel</button>
+      <button type="button" class="btn btn-primary btn-sm" onclick="addUnlistedCheckItem()">Add to this check</button>
+    </div>
+  </div>
+</div>
       <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
         <div class="field"><label>Overall notes (optional)</label><textarea id="invcheck-notes" rows="2" style="font-family:inherit;font-size:13px;padding:8px;border:1px solid var(--border);border-radius:var(--radius);width:100%"></textarea></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
@@ -951,7 +970,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-10-15a'; 
+var APP_VERSION='2026-11-5a'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
@@ -2581,10 +2600,10 @@ function applyCheckAdjustments(checkId,items,by){
       var d={id:'DP-'+String(nextDP++).padStart(3,'0')+ID_SUFFIX,date:today(),lot:normLot(i.lot),med:i.med,qty:-diff,reason:'Count adjustment',method:'Other',staff:by,notes:note,rep:i.rep||''};
       DB.disposals.unshift(d);sbSaveDisposal(d);recId=d.id;
     }else{
-      var s={id:'SI-'+String(nextS++).padStart(4,'0')+ID_SUFFIX,date:today(),med:i.med,lot:normLot(i.lot),exp:expFor(i.lot),qtyReceived:diff,unit:i.unit,rep:i.rep||'',brand:''};
+      var s={id:'SI-'+String(nextS++).padStart(4,'0')+ID_SUFFIX,date:today(),med:i.med,lot:normLot(i.lot),exp:i.exp||expFor(i.lot),qtyReceived:diff,unit:i.unit,rep:i.rep||'',brand:''};
       DB.stockIn.push(s);sbSaveStockIn(s);recId=s.id;
     }
-    var ar={ts:ts,action:'inv-check',id:checkId,field:'count adjustment',before:'Lot '+normLot(i.lot)+' expected '+i.expected,after:'counted '+i.actual+' ('+(diff>0?'+':'')+diff+') via '+recId,by:by};
+    var ar={ts:ts,action:'inv-check',id:checkId,field:'count adjustment',before:'Lot '+normLot(i.lot)+(i.added?' (added during count)':'')+' expected '+i.expected,after:'counted '+i.actual+' ('+(diff>0?'+':'')+diff+') via '+recId,by:by};
     DB.auditLog.unshift(ar);sbSaveAudit(ar);n++;
   });
   if(n){renderInventory();renderDisposals();renderRecentLots();updateStats();updateBadge();toast(n+' lot'+(n===1?'':'s')+' adjusted to match the count');}
@@ -2680,7 +2699,7 @@ function renderCheckItems(){
     var diffColor=diff===null?'var(--muted)':diff<0?'#dc2626':diff===0?'var(--green)':'#d97706';
     var rowBg=diff===null?'':diff<0?'background:#fff5f5':diff===0?'background:#f0fdf4':'background:#fffbeb';
     html+='<tr style="'+rowBg+'">'+
-      '<td style="font-weight:600">'+item.med+'</td>'+
+      '<td style="font-weight:600">'+item.med+(item.added?' <span class="badge info">Added</span>':'')+'</td>'+
       '<td style="font-family:monospace;font-size:11px">'+item.lot+'</td>'+
       '<td style="font-size:12px">'+(item.rep||'--')+'</td>'+
       '<td style="font-size:11px;color:var(--muted)">'+(item.lastChecked?fmtD(item.lastChecked):'<span style="color:#dc2626;font-weight:600">Never</span>')+'</td>'+
@@ -2694,6 +2713,43 @@ function renderCheckItems(){
   var counted=currentCheckItems.filter(function(i){return i.actual!=='';}).length;
   var shortages=currentCheckItems.filter(function(i){return i.actual!==''&&parseInt(i.actual)<i.expected;}).length;
   document.getElementById('invcheck-summary').textContent=counted+'/'+currentCheckItems.length+' counted'+(shortages>0?' -- '+shortages+' shortage'+(shortages===1?'':'s'):'');
+}
+function openAddUnlisted(){
+  var sel=document.getElementById('ic-add-rep');
+  sel.innerHTML='<option value="">-- select --</option>'+CONFIG.storageLocations.map(function(l){return '<option value="'+esc(l)+'">'+esc(l)+'</option>';}).join('');
+  document.getElementById('ic-add-panel').classList.remove('hidden');
+  document.getElementById('ic-add-btn').style.display='none';
+  document.getElementById('ic-add-lot').focus();
+}
+function cancelAddUnlisted(){
+  ['ic-add-lot','ic-add-med','ic-add-exp','ic-add-count','ic-add-note'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  var p=document.getElementById('ic-add-panel');if(p)p.classList.add('hidden');
+  var b=document.getElementById('ic-add-btn');if(b)b.style.display='';
+}
+function icAddLotFill(v){
+  var bs=lotBuckets(v);if(!bs.length)return;var b=bs[0];
+  var m=document.getElementById('ic-add-med');if(!m.value)m.value=b.med;
+  var e=document.getElementById('ic-add-exp');if(!e.value&&b.exp)e.value=b.exp;
+  ensureUnitOption(document.getElementById('ic-add-unit'),b.unit);
+}
+function addUnlistedCheckItem(){
+  var med=document.getElementById('ic-add-med').value.trim();
+  var lot=normLot(document.getElementById('ic-add-lot').value);
+  var rep=document.getElementById('ic-add-rep').value;
+  var unit=document.getElementById('ic-add-unit').value;
+  var exp=document.getElementById('ic-add-exp').value||expFor(lot)||'';
+  var cnt=document.getElementById('ic-add-count').value.trim();
+  var note=document.getElementById('ic-add-note').value.trim();
+  if(!med||!lot||!rep||cnt===''){alert('Lot, medication, location and count are required.');return;}
+  if(!(parseInt(cnt)>=0)){alert('Count must be 0 or more.');return;}
+  if(!exp){alert('Expiration date is required for a lot that is not in inventory yet.');return;}
+  if(!note){alert('Please add a note explaining why this lot was not on the list.');return;}
+  var names=[...new Set(DB.stockIn.map(function(s){return s.med;}).filter(Boolean))];
+  var match=names.find(function(n){return n.trim().toLowerCase()===med.toLowerCase();});if(match)med=match;
+  if(currentCheckItems.some(function(i){return normLot(i.lot)===lot&&(i.rep||'')===rep;})){alert('Lot '+lot+' in '+rep+' is already on this check. Enter the count on its row.');return;}
+  var b=findBucket(bucketKey(med,lot,rep));
+  currentCheckItems.push({med:med,lot:lot,rep:rep,unit:(b&&b.unit)||unit,expected:b?b.remaining:0,actual:cnt,note:note,revealed:true,lastChecked:null,added:true,exp:exp});
+  cancelAddUnlisted();renderCheckItems();
 }
 function updateCheckItem(idx,field,val){currentCheckItems[idx][field]=val;if(field==='actual'&&val!=='')currentCheckItems[idx].revealed=true;renderCheckItems();}
 function submitInventoryCheck(){
@@ -2709,14 +2765,14 @@ function submitInventoryCheck(){
   if(discrepancies&&!confirm(discrepancies+' lot'+(discrepancies===1?'':'s')+' will be adjusted so inventory matches your count. Continue?'))return;
   var id='IC-'+String(nextIC++).padStart(3,'0')+ID_SUFFIX;
   var isSpot=window._invCheckIsSpot||false;
-  var check={id:id,date:today(),conducted_by:staff,witness:witness,check_type:isSpot?'spot':'full',items:currentCheckItems.map(function(i){return{med:i.med,lot:i.lot,rep:i.rep,unit:i.unit,expected:i.expected,actual:i.actual===''?null:parseInt(i.actual),discrepancy:i.actual===''?null:parseInt(i.actual)-i.expected,note:i.note};}),total_items:currentCheckItems.length,discrepancies:discrepancies,notes:document.getElementById('invcheck-notes').value.trim()};
+  var check={id:id,date:today(),conducted_by:staff,witness:witness,check_type:isSpot?'spot':'full',items:currentCheckItems.map(function(i){return{med:i.med,lot:i.lot,rep:i.rep,unit:i.unit,expected:i.expected,actual:i.actual===''?null:parseInt(i.actual),discrepancy:i.actual===''?null:parseInt(i.actual)-i.expected,note:i.note,exp:i.exp||null,added:!!i.added};}),total_items:currentCheckItems.length,discrepancies:discrepancies,notes:document.getElementById('invcheck-notes').value.trim()};
   if(!DB.inventoryChecks)DB.inventoryChecks=[];DB.inventoryChecks.unshift(check);
   sbWrite('inventory_checks','insert',{id:check.id,date:check.date,conducted_by:check.conducted_by,witness:check.witness||null,check_type:check.check_type||'full',items:check.items,total_items:check.total_items,discrepancies:check.discrepancies,notes:check.notes||null});
   var ar={ts:new Date().toISOString(),action:'inv-check',id:id,field:'inventory check',before:'--',after:currentCheckItems.length+' lots, '+discrepancies+' discrepanc'+(discrepancies===1?'y':'ies'),by:staff};
   DB.auditLog.unshift(ar);sbSaveAudit(ar);applyCheckAdjustments(id,check.items,staff);save();closeInvCheckModal();renderInvCheckHistory();renderInventory();
   toast('Check '+id+' submitted -- '+discrepancies+' discrepanc'+(discrepancies===1?'y':'ies'));
 }
-function closeInvCheckModal(){document.getElementById('invcheck-modal').style.display='none';currentCheckItems=[];window._activeSplitCheckId=null;window._activeSplitRole=null;}
+function closeInvCheckModal(){cancelAddUnlisted();document.getElementById('invcheck-modal').style.display='none';currentCheckItems=[];window._activeSplitCheckId=null;window._activeSplitRole=null;}
 function renderInvCheckHistory(){
   var el=document.getElementById('invcheck-history');if(!el)return;
   var q=(document.getElementById('invcheck-search')||{value:''}).value.toLowerCase();
@@ -3009,7 +3065,7 @@ function openMyCountSection(){
   var check=getActiveSplitCheck();if(!check)return;
   var role=myRoleInCheck(check);if(!role){toast('You are not assigned to count in this check.');return;}
   var myItems=(role==='a'?check.items_a:check.items_b)||[];
-  currentCheckItems=myItems.map(function(i){return{med:i.med,lot:i.lot,rep:i.rep,unit:i.unit,expected:i.expected,actual:i.actual===null?'':String(i.actual),note:i.note||'',revealed:i.actual!==null};});
+  currentCheckItems=myItems.map(function(i){return{med:i.med,lot:i.lot,rep:i.rep,unit:i.unit,expected:i.expected,actual:i.actual===null?'':String(i.actual),note:i.note||'',revealed:i.actual!==null,exp:i.exp||null,added:!!i.added};});
   document.getElementById('invcheck-date-display').textContent=check.id+' -- Your section ('+currentCheckItems.length+' lots)';
   document.getElementById('invcheck-notes').value='';
   document.getElementById('invcheck-staff').value=sessionStaff();
@@ -3026,7 +3082,7 @@ async function submitMySection(){
   currentCheckItems.forEach(function(i){var r=remainingFor(i.med,i.lot,i.rep);if(r!==null)i.expected=r;});
   var need=currentCheckItems.filter(function(i){return i.actual!==''&&parseInt(i.actual)<i.expected&&!i.note.trim();});
   if(need.length){alert(need.length+' shortage'+(need.length===1?'':'s')+' require a note before submitting.');return;}
-  var updated=currentCheckItems.map(function(i){return{med:i.med,lot:i.lot,rep:i.rep,unit:i.unit,expected:i.expected,actual:i.actual===''?null:parseInt(i.actual),note:i.note||''};});
+  var updated=currentCheckItems.map(function(i){return{med:i.med,lot:i.lot,rep:i.rep,unit:i.unit,expected:i.expected,actual:i.actual===''?null:parseInt(i.actual),note:i.note||'',exp:i.exp||null,added:!!i.added};});
   try{var fr=await _db.from('inventory_checks').select('*').eq('id',checkId).single();if(fr.data)Object.assign(check,fr.data);}catch(e){}   
   if(role==='a'){check.items_a=updated;check.submitted_a=true;}else{check.items_b=updated;check.submitted_b=true;}
   if(check.submitted_a&&check.submitted_b)check.status='cosigning';
