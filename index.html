@@ -126,14 +126,16 @@ tr:hover td{background:#f0f5ff}
 #note-tooltip .tip-label{font-size:10px;text-transform:uppercase;letter-spacing:.05em;opacity:.6;margin-bottom:4px}
 #note-tooltip .tip-empty{opacity:.5;font-style:italic} 
 #f-lot,#si-lot,#sie-lot,#dp-lot,#rc-lot{text-transform:uppercase}
-/* Dispensing log: fit on screen, keep Edit/Del visible */
-#tab-log{max-width:1400px}
-#tab-log table td{white-space:normal;max-width:none;overflow:visible;padding:6px;word-break:break-word}
-#tab-log table th{padding:8px 6px}
-#tab-log table td:last-child,#tab-log table th:last-child{white-space:nowrap;position:sticky;right:0;background:#fff;box-shadow:-6px 0 6px -6px rgba(0,0,0,.25)}
-#tab-log table th:last-child{background:var(--bg)}
-body.dark #tab-log table td:last-child{background:#1f2937}
-#tab-log .tbl-wrap .btn-sm{padding:3px 8px}
+/* Fit every table on screen -- no sideways scrolling */
+.tab{max-width:1600px}
+table{table-layout:auto}
+th,td{white-space:normal!important;max-width:none!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere;padding:6px!important}
+th{font-size:10px}
+td.no-print{display:table-cell!important}
+td.no-print .btn{margin:2px 2px 2px 0}
+.badge{white-space:normal}
+.btn-sm{padding:3px 8px}
+#init-inventory-modal table{min-width:0!important}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -978,7 +980,7 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-11-9a'; 
+var APP_VERSION='2026-11-9b'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
