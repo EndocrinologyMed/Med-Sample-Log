@@ -125,7 +125,7 @@ tr:hover td{background:#f0f5ff}
 #note-tooltip{position:fixed;z-index:500;background:#1f2937;color:#f9fafb;padding:8px 12px;border-radius:var(--radius);font-size:12px;max-width:280px;white-space:pre-wrap;word-break:break-word;pointer-events:none;display:none;box-shadow:0 4px 12px rgba(0,0,0,.3);line-height:1.5}
 #note-tooltip .tip-label{font-size:10px;text-transform:uppercase;letter-spacing:.05em;opacity:.6;margin-bottom:4px}
 #note-tooltip .tip-empty{opacity:.5;font-style:italic} 
-#f-lot,#si-lot,#sie-lot,#dp-lot,#rc-lot{text-transform:uppercase}
+#f-lot,#si-lot,#sie-lot,#dp-lot,#rc-lot,#inv-search,#search,#rcv-search,#audit-search,#invcheck-search{text-transform:uppercase}
 /* Fit every table on screen -- no sideways scrolling */
 .tab{max-width:1600px}
 table{table-layout:auto}
@@ -170,7 +170,6 @@ td.no-print .btn{margin:2px 2px 2px 0}
 <header>
   <div><h1>Medication Sample Log</h1><p id="hdr-clinic">Endocrinology Associates</p></div>
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-    <button onclick="toggleConfig()" style="display:none;cursor:pointer;font-size:12px;padding:4px 10px;border-radius:var(--radius)" class="session-sel" id="config-btn">&#9881; Config</button>
     <button onclick="openPrefs()" id="prefs-btn" style="display:none;cursor:pointer;font-size:12px;padding:4px 10px;border-radius:var(--radius)" class="session-sel">&#9965; Preferences</button>
     <button onclick="openConfigEditor()" id="settings-btn" style="display:none;cursor:pointer;font-size:12px;padding:4px 10px;border-radius:var(--radius)" class="session-sel">&#9881; Settings</button>
     <button onclick="refreshData()" id="refresh-btn" style="display:none;cursor:pointer;font-size:12px;padding:4px 10px;border-radius:var(--radius)" class="session-sel" title="Refresh data">&#8635; Refresh</button>
@@ -187,21 +186,6 @@ td.no-print .btn{margin:2px 2px 2px 0}
     </div>
   </div>
 </header>
-
-<div id="config-panel" style="display:none;background:#1e3a5f;color:#e8f0fa;padding:14px 20px;font-size:12px;border-bottom:2px solid #2d5a8e">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-    <strong>Clinic configuration</strong>
-    <button onclick="toggleConfig()" style="background:rgba(255,255,255,.15);border:none;color:#fff;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:12px">Close</button>
-  </div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;opacity:.9">
-    <div><div style="font-weight:700;margin-bottom:4px">Providers</div><div id="cfg-physicians" style="font-family:monospace;line-height:1.8"></div></div>
-    <div><div style="font-weight:700;margin-bottom:4px">Staff</div><div id="cfg-staff" style="font-family:monospace"></div></div>
-    <div><div style="font-weight:700;margin-bottom:4px">Sample limit</div><div id="cfg-limit" style="font-family:monospace"></div></div>
-    <div><div style="font-weight:700;margin-bottom:4px">Expiry warning</div><div id="cfg-expiry" style="font-family:monospace"></div></div>
-    <div><div style="font-weight:700;margin-bottom:4px">Medications</div><div id="cfg-meds" style="font-family:monospace"></div></div>
-  </div>
-  <div style="margin-top:10px;opacity:.7;font-size:11px">Open HTML in text editor, find CONFIG, edit and save, refresh.</div>
-</div>
 
 <nav>
   <button class="active" onclick="showTab('log')">Log Entry</button>
@@ -373,7 +357,7 @@ td.no-print .btn{margin:2px 2px 2px 0}
 </div>
   <div class="card" id="inv-thresholds-card">
     <div class="card-title">Reorder thresholds</div>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Alert fires when remaining units reach or fall below this level.</p>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Inventory shows &ldquo;Low stock&rdquo; when remaining units reach or fall below this level.</p>
     <div id="thresh-list"></div>
     <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
       <input id="thresh-med" list="ml3" placeholder="Medication name" style="flex:2;min-width:160px"/><datalist id="ml3"></datalist>
@@ -699,7 +683,7 @@ td.no-print .btn{margin:2px 2px 2px 0}
     </div>
     <div id="cs-locs" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;margin-bottom:12px"></div>
     <div class="field" style="margin-bottom:16px">
-      <label>Number of random lots (leave blank to count every lot)</label>
+      <label>Number of random lots &mdash; leave blank to count EVERY lot in these locations, or enter a number for a random sample</label>
       <input id="cs-count" type="number" min="1" placeholder="All lots"/>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
@@ -783,7 +767,7 @@ td.no-print .btn{margin:2px 2px 2px 0}
           <div class="field"><label>Sample limit (max per patient)</label><input id="cfg-sample-count" type="number" min="1" max="20"/><span style="font-size:11px;color:var(--muted)">Max samples per patient per window</span></div>
           <div class="field"><label>Sample limit window (days)</label><input id="cfg-sample-days" type="number" min="1" max="730"/><span style="font-size:11px;color:var(--muted)">Rolling window for the limit above</span></div>
           <div class="field"><label>Expiry warning (days out)</label><input id="cfg-expiry-warn" type="number" min="1" max="180"/><span style="font-size:11px;color:var(--muted)">Warn when a lot expires within N days</span></div>
-          <div class="field"><label>Default low stock threshold</label><input id="cfg-low-stock" type="number" min="0" max="999"/><span style="font-size:11px;color:var(--muted)">Alert when units at or below this</span></div>
+          
           <div class="field"><label>Session timeout (minutes)</label><input id="cfg-session-timeout" type="number" min="0" max="480"/><span style="font-size:11px;color:var(--muted)">0 = no auto sign-out</span></div>
           <div class="field"><label>Inventory baseline date</label><input id="cfg-inv-baseline" type="date"/><span style="font-size:11px;color:var(--muted)">Dispensing/disposals before this date won't count against current stock -- use after a reset</span></div>
         </div>
@@ -980,13 +964,13 @@ var CONFIG = {
 // END CONFIGURATION
 // ================================================================
 
-var APP_VERSION='2026-11-9b'; 
+var APP_VERSION='2026-11-10a'; 
 var MEDS=CONFIG.medications,PHYSICIANS=CONFIG.providers,STAFF_LIST=CONFIG.staff;
 function pad(n){return String(n).padStart(2,'0');} 
 function normLot(s){return String(s||'').trim().toUpperCase();} 
 function mrnKey(s){return String(s||'').toUpperCase().replace(/[\s\-]/g,'').replace(/^MRN/,'');} 
 function getThreshold(med){var t=DB.settings.thresholds||{};if(t[med]!==undefined)return t[med];var k=Object.keys(t).find(function(x){return x.trim().toLowerCase()===String(med||'').trim().toLowerCase();});return k!==undefined?t[k]:undefined;}
-function today(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function today(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());} function daysAgoStr(n){var d=new Date();d.setDate(d.getDate()-n);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
 function nowT(){var d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes());}
 function fmtD(s){if(!s)return'';var p=s.split('-');return p[1]+'/'+p[2]+'/'+p[0].slice(2);}
 function fmtDT(iso){if(!iso)return'';return new Date(iso).toLocaleString();}
@@ -1062,7 +1046,7 @@ async function loadFromSupabase(){
     var clinicConf=(res[5].data||[]).find(function(x){return x.key==='clinic_config';});
     if(clinicConf&&clinicConf.value){applyClinicConfig(clinicConf.value);repopulateDropdowns();}
     // 1) Load this device's cached FDA recalls first...
-    try{var _ldb=JSON.parse(localStorage.getItem('endo_db2')||'{}');if(_ldb.fdaRecalls&&_ldb.fdaRecalls.length)DB.fdaRecalls=_ldb.fdaRecalls;}catch(e){}
+    try{var _fc=JSON.parse(localStorage.getItem('fda_cache')||'[]');if(_fc.length)DB.fdaRecalls=_fc;}catch(e){}
     if(!DB.fdaRecalls)DB.fdaRecalls=[];
     // 2) ...then apply the shared dismissed list from Supabase on top, so a dismissal on any device wins
     var dismissedFDA=(res[5].data||[]).find(function(x){return x.key==='dismissed_fda_recalls';});
@@ -1384,9 +1368,9 @@ function renderPersonalBanner(initials){
   var banner=document.getElementById('personal-banner');if(!banner)return;
   var name=CONFIG.staffNames[initials]||initials;
   var firstName=name.split(' ')[0];
-  var t=today();var cutoff=new Date();cutoff.setDate(cutoff.getDate()-30);
+  var t=today();var cutoff=daysAgoStr(30);
   var myEntriesToday=DB.entries.filter(function(e){return e.staff===initials&&e.date===t;}).length;
-  var myEntriesMonth=DB.entries.filter(function(e){return e.staff===initials&&new Date(e.date)>=cutoff;}).length;
+  var myEntriesMonth=DB.entries.filter(function(e){return e.staff===initials&&e.date>=cutoff;}).length;
   var myEntriesTotal=DB.entries.filter(function(e){return e.staff===initials;}).length;
   banner.style.display='flex';
   banner.innerHTML='<div><h2>'+getTimeOfDay()+', '+firstName+'! &#128075;</h2><p>'+name+'</p></div>'+
@@ -1513,7 +1497,6 @@ async function submitLogin(){
   document.getElementById('prefs-btn').style.display='inline';
   document.getElementById('refresh-btn').style.display='inline';
     if(CONFIG.roles[initials]==='admin'){document.getElementById('settings-btn').style.display='inline';var iib=document.getElementById('init-inv-btn');if(iib)iib.style.display='inline';}
-  var configBtn=document.getElementById('config-btn');if(configBtn)configBtn.style.display=initials==='OB'?'inline':'none';
   applyRoleRestrictions(initials);
   var prefs=loadUserPrefs(initials);applyPrefs(prefs,initials);
   document.getElementById('login-loading').style.display='block';
@@ -1605,7 +1588,6 @@ function signOut(){
   document.getElementById('prefs-btn').style.display='none';
   document.getElementById('refresh-btn').style.display='none';
   document.getElementById('settings-btn').style.display='none';var _iib=document.getElementById('init-inv-btn');if(_iib)_iib.style.display='none';
-  var configBtn=document.getElementById('config-btn');if(configBtn)configBtn.style.display='none';
   document.body.classList.remove('dark','compact','fs-sm','fs-md','fs-lg');document.body.classList.add('fs-md');
   document.documentElement.style.removeProperty('--accent');document.documentElement.style.removeProperty('--accent-lt');document.documentElement.style.removeProperty('--accent-dk');document.documentElement.style.removeProperty('--blue');document.documentElement.style.removeProperty('--blue-lt');document.documentElement.style.removeProperty('--blue-dk');
   // Restore stat card visibility on signout
@@ -1614,7 +1596,7 @@ if(stats){Array.from(stats.children).forEach(function(s){s.style.display='';});}
 document.getElementById('log-body').innerHTML='';document.getElementById('inv-container').innerHTML='<p style="color:var(--muted);font-size:13px;text-align:center;padding:24px">No stock records yet.</p>';
   var banner=document.getElementById('personal-banner');if(banner)banner.style.display='none';
     var rcv=document.getElementById('rcv-list');if(rcv)rcv.innerHTML='';_selBucket=null;
-      localStorage.removeItem('endo_db2');localStorage.removeItem('fdaLastCheck');
+      localStorage.removeItem('endo_db2');
       DB.entries=[];DB.stockIn=[];DB.disposals=[];DB.recalls=[];DB.auditLog=[];DB.inventoryChecks=[];DB.fdaRecalls=[];
       ['alerts-list','recalls-list','audit-body','disposal-list','invcheck-history','stat-modal-tbody'].forEach(function(id){var el=document.getElementById(id);if(el)el.innerHTML='';});
   document.getElementById('login-pin').value='';document.getElementById('login-initials').value='';
@@ -1751,6 +1733,8 @@ function saveIntakeAndContinue(){
   if(exactCIIP&&exactCIIP!==med){med=exactCIIP;}
   else if(!exactCIIP){var fwIP=med.split(' ')[0].toLowerCase();var simIP=existingNamesIP.filter(function(n){return n.split(' ')[0].toLowerCase()===fwIP;});
     if(simIP.length&&!confirm('"'+med+'" is a new medication name. These existing names start the same way:\n\n'+simIP.slice(0,8).join('\n')+'\n\nOK = add "'+med+'" as a new name\nCancel = go back and pick one of these'))return;}
+  var dupS=DB.stockIn.find(function(s){return normLot(s.lot)===lot&&(s.rep||'')===loc&&String(s.med||'').trim().toLowerCase()===med.toLowerCase()&&rcvAgeHours(s)<=24;});
+  if(dupS&&!confirm('Possible double entry\n\n'+dupS.qtyReceived+' '+plural(dupS.qtyReceived,dupS.unit)+' of '+dupS.med+' (Lot '+normLot(dupS.lot)+') was already received into '+loc+' by '+(CONFIG.staffNames[dupS.receivedBy]||dupS.receivedBy||'someone')+' '+agoText(rcvAgeHours(dupS))+' ('+dupS.id+').\n\nOK = this is a separate box, record it\nCancel = don\'t record'))return;
   var entry={id:'SI-'+String(nextS++).padStart(4,'0')+ID_SUFFIX,date:today(),med:med,lot:lot,brand:document.getElementById('ip-brand').value.trim(),exp:exp,qtyReceived:qty,unit:document.getElementById('ip-unit').value,rep:loc};
   DB.stockIn.push(entry);sbSaveStockIn(entry);save();
   document.getElementById('intake-panel').classList.add('hidden');document.getElementById('lot-error').classList.add('hidden');
@@ -1779,12 +1763,12 @@ function renderRecentLots(){
 function pickLot(lot){document.getElementById('f-lot').value=lot;lotAutofill(lot);}
 
 function samplesInWindow(mrn,excludeId){
-  if(!mrn)return 0;var cutoff=new Date();cutoff.setDate(cutoff.getDate()-CONFIG.sampleLimitDays);
-  return DB.entries.filter(function(e){return e.patientMrn&&mrnKey(e.patientMrn)===mrnKey(mrn)&&e.id!==excludeId&&new Date(e.date)>=cutoff;}).length;
+  if(!mrn)return 0;var cutoff=daysAgoStr(CONFIG.sampleLimitDays);
+  return DB.entries.filter(function(e){return e.patientMrn&&mrnKey(e.patientMrn)===mrnKey(mrn)&&e.id!==excludeId&&e.date>=cutoff;}).length;
 }
 function overLimitPatients(){
-  var mrns={},cutoff=new Date();cutoff.setDate(cutoff.getDate()-CONFIG.sampleLimitDays);
-  DB.entries.forEach(function(e){if(!e.patientMrn)return;var k=mrnKey(e.patientMrn);if(!mrns[k])mrns[k]={mrn:e.patientMrn,count:0};if(new Date(e.date)>=cutoff)mrns[k].count++;});
+  var mrns={},cutoff=daysAgoStr(CONFIG.sampleLimitDays);
+  DB.entries.forEach(function(e){if(!e.patientMrn)return;var k=mrnKey(e.patientMrn);if(!mrns[k])mrns[k]={mrn:e.patientMrn,count:0};if(e.date>=cutoff)mrns[k].count++;});
   return Object.values(mrns).filter(function(p){return p.count>CONFIG.sampleLimitCount;});
 }
 
@@ -1872,7 +1856,7 @@ function _deleteEntry(id){
   save();renderTable();updateStats();renderRecentLots();toast('Entry '+id+' deleted -- audit record preserved');
 }
 function showStatModal(type){
-  var t=today(),cutoff6m=new Date();cutoff6m.setDate(cutoff6m.getDate()-CONFIG.sampleLimitDays);
+  var t=today(),cutoff6m=daysAgoStr(CONFIG.sampleLimitDays);
   var overLimitMRNs=new Set(overLimitPatients().map(function(p){return mrnKey(p.mrn);}));
   var modal=document.getElementById('stat-modal');
   var thead=document.getElementById('stat-modal-thead');
@@ -1919,7 +1903,7 @@ function showStatModal(type){
   if(!entries.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">No entries found.</td></tr>';}
   else{tbody.innerHTML=entries.map(function(e){
     var rc=isRecalled(e.lot);
-    var ptCount=e.patientMrn?DB.entries.filter(function(x){return x.patientMrn&&mrnKey(x.patientMrn)===mrnKey(e.patientMrn)&&new Date(x.date)>=cutoff6m;}).length:0;
+    var ptCount=e.patientMrn?DB.entries.filter(function(x){return x.patientMrn&&mrnKey(x.patientMrn)===mrnKey(e.patientMrn)&&x.date>=cutoff6m;}).length:0;
     return'<tr style="'+(rc?'background:#fef9c3':ptCount>CONFIG.sampleLimitCount?'background:#fdf2f8':'')+'">'+
       '<td style="padding:7px 10px;border-bottom:1px solid var(--border)">'+fmtD(e.date)+'</td>'+
       '<td style="padding:7px 10px;border-bottom:1px solid var(--border);color:var(--muted)">'+e.time+'</td>'+
@@ -1939,13 +1923,13 @@ function getFiltered(){var q=document.getElementById('search').value.toLowerCase
 function renderTable(){
   var f=getFiltered(),total=f.length,start=(page-1)*PER,slice=f.slice(start,start+PER);
   var tbody=document.getElementById('log-body');
-  var cutoff6m=new Date();cutoff6m.setDate(cutoff6m.getDate()-CONFIG.sampleLimitDays);
+  var cutoff6m=daysAgoStr(CONFIG.sampleLimitDays);
   if(!slice.length){tbody.innerHTML='<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--muted)">No entries found.</td></tr>';}
   else{
     var canDel=canDeleteEntry();
     tbody.innerHTML=slice.map(function(e){
       var rc=isRecalled(e.lot),canEd=canEditEntry(e.staff,e);
-      var ptCount=e.patientMrn?DB.entries.filter(function(x){return x.patientMrn&&mrnKey(x.patientMrn)===mrnKey(e.patientMrn)&&new Date(x.date)>=cutoff6m;}).length:0;
+      var ptCount=e.patientMrn?DB.entries.filter(function(x){return x.patientMrn&&mrnKey(x.patientMrn)===mrnKey(e.patientMrn)&&x.date>=cutoff6m;}).length:0;
       var safeNotes=encodeURIComponent(e.notes||'');
       return'<tr data-notes="'+safeNotes+'" onmouseenter="showNoteTooltip(event,decodeURIComponent(this.getAttribute(\'data-notes\')))" onmouseleave="hideNoteTooltip()" style="'+(rc?'background:#fef9c3':ptCount>CONFIG.sampleLimitCount?'background:#fdf2f8':'')+'">'+
         '<td style="font-family:monospace;font-size:10px;color:var(--muted)">'+e.id+'</td>'+
@@ -2191,22 +2175,6 @@ function renderThresholds(){
   if(!ents.length){el.innerHTML='<p style="font-size:12px;color:var(--muted);margin-bottom:8px">No thresholds set.</p>';return;}
   el.innerHTML=ents.map(function(e){return'<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px"><span style="flex:1">'+e[0]+'</span><span style="color:var(--muted)">Min: <strong>'+e[1]+'</strong></span><button class="btn btn-sm btn-danger" onclick="removeThreshold(\''+e[0].replace(/'/g,"\\'")+'\')">Remove</button></div>';}).join('');
 }
-function deleteStockIn(id){
-  if(!canEditInventory()){denyMsg('delete inventory');return;}
-  var s=DB.stockIn.find(function(x){return x.id===id;});if(!s)return;
-  var rem=(function(){var inv=computeInv();var item=inv.find(function(i){return i.lot===s.lot&&i.med===s.med;});return item?item.received-item.dispensed:s.qtyReceived;})();
-  var msg='Remove '+s.med+' (Lot '+s.lot+') from inventory?';
-  if(rem>0)msg+='\n\nWarning: '+rem+' unit'+(rem===1?'':'s')+' still show as remaining. Consider recording a disposal first.';
-  requirePin(function(){
-    if(!confirm(msg))return;
-    var by=sessionStaff()||'?';
-    DB.stockIn=DB.stockIn.filter(function(x){return x.id!==id;});
-    var ar={ts:new Date().toISOString(),action:'inv-delete',id:id,field:'stock removed',before:JSON.stringify({med:s.med,lot:s.lot,exp:s.exp,qty:s.qtyReceived}),after:'REMOVED',by:by};
-    DB.auditLog.unshift(ar);sbDeleteStockIn(id);sbSaveAudit(ar);
-    save();renderInventory();renderRecentLots();populateMedLists();updateStats();
-    toast('Lot '+s.lot+' removed from inventory -- audit record preserved.');
-  });
-}
 var editingStockId=null;
 function editStockIn(id){if(!canEditInventory()){denyMsg('edit inventory');return;}requirePin(function(){_openSiEditModal(id);});}
 function _openSiEditModal(id){
@@ -2264,6 +2232,8 @@ function addDisposal(){
   if(qty>b.remaining){alert('Only '+b.remaining+' '+plural(b.remaining,b.unit)+' of Lot '+b.lot+' on hand in '+(b.rep||'this location')+'. You can\'t dispose more than that.');return;}
   if(!reason){alert('Please select a reason.');return;}
   if(!staff){alert('Staff initials are required.');return;}
+  var dupD=(DB.disposals||[]).find(function(d){return normLot(d.lot)===b.lot&&String(d.rep||d.location||'')===String(b.rep||'')&&parseInt(d.qty)===qty&&d.reason!=='Count adjustment'&&(d.created_at?(Date.now()-new Date(d.created_at).getTime())/3600000<=24:d.date===today());});
+  if(dupD&&!confirm('Possible double entry\n\n'+dupD.qty+' '+plural(dupD.qty,b.unit)+' of '+b.med+' (Lot '+b.lot+') was already disposed from '+(b.rep||'this location')+' by '+(CONFIG.staffNames[dupD.staff]||dupD.staff)+' ('+dupD.id+', '+dupD.reason+').\n\nOK = this is a separate disposal, record it\nCancel = don\'t record'))return;
   var id='DP-'+String(nextDP++).padStart(3,'0')+ID_SUFFIX;
   var entry={id:id,date:today(),lot:b.lot,med:b.med,qty:qty,reason:reason,method:document.getElementById('dp-method').value,staff:staff,notes:document.getElementById('dp-notes').value.trim(),rep:b.rep,location:b.rep};
   DB.disposals.unshift(entry);
@@ -2338,13 +2308,7 @@ function renderAlerts(){
     if(d<0){al.push({cls:'danger',icon:'&#9888;',title:'EXPIRED STOCK: '+s.med+' (Lot '+s.lot+')',sub:'Expired '+Math.abs(d)+' day'+(Math.abs(d)===1?'':'s')+' ago -- '+rem+' unit'+(rem===1?'':'s')+' on hand -- '+(s.rep||''),disposeBtn:{lot:s.lot,med:s.med}});}
     else if(d<=CONFIG.expiryWarnDays){if(isSnoozed(snoozeKey))return;al.push({cls:'warn',icon:'&#9200;',title:'Expiring in '+d+' day'+(d===1?'':'s')+': '+s.med,sub:'Lot '+s.lot+' -- '+rem+' unit'+(rem===1?'':'s')+' remaining -- '+(s.rep||''),snoozeKey:snoozeKey});}
   });
-  var inv=computeInv(),byMedRem={};inv.forEach(function(i){if(!byMedRem[i.med])byMedRem[i.med]=0;byMedRem[i.med]+=i.received-i.dispensed;});
-  Object.keys(byMedRem).forEach(function(med){
-    var rem=byMedRem[med];
-    var thresh=getThreshold(med);if(thresh===undefined)thresh=CONFIG.defaultLowStockThreshold;
-    if(rem<=thresh&&rem>0){var sk='low:'+med;if(isSnoozed(sk))return;
-      al.push({cls:'warn',icon:'&#128230;',title:'Low stock: '+med,sub:rem+' unit'+(rem===1?'':'s')+' remaining -- threshold '+thresh,snoozeKey:sk});}
-  });
+    var inv=_alertInv;
   var dismissedList=[];window._alertLabels={};
   inv.filter(function(i){return i.remaining<0;}).forEach(function(i){var dk='neg:'+i.key+':'+i.remaining;window._alertLabels[dk]='Count below zero: '+i.med+' (Lot '+i.lot+') -- '+(i.rep||'No location')+' shows '+i.remaining;if(isDismissed(dk)){dismissedList.push(dk);return;}if(isSnoozed('negsnz:'+i.key))return;al.push({cls:'danger',icon:'&#10067;',title:'Count below zero: '+esc(i.med)+' (Lot '+esc(i.lot)+')',sub:esc(i.rep||'No location')+' -- shows '+i.remaining+'. More was logged out than received. Check for a missed receipt, a lot-number typo, or an entry logged under the wrong location.',dismissKey:dk,invLot:i.lot,snoozeKey:'negsnz:'+i.key});});
   DB.recalls.filter(function(r){return r.active;}).forEach(function(r){
@@ -2623,7 +2587,7 @@ function openCheckSetup(){
   document.getElementById('cs-locs').innerHTML=CONFIG.storageLocations.map(function(l){
     return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0;cursor:pointer"><input type="checkbox" class="cs-loc" value="'+l.replace(/"/g,'&quot;')+'" style="width:auto"/> '+l+'</label>';
   }).join('');
-  document.getElementById('cs-count').value='10';
+  document.getElementById('cs-count').value='';
   document.getElementById('check-setup-modal').style.display='flex';
 }
 function csToggleAll(on){document.querySelectorAll('.cs-loc').forEach(function(c){c.checked=on;});}
@@ -2714,9 +2678,9 @@ function renderCheckItems(){
       '<td style="font-size:12px">'+(item.rep||'--')+'</td>'+
       '<td style="font-size:11px;color:var(--muted)">'+(item.lastChecked?fmtD(item.lastChecked):'<span style="color:#dc2626;font-weight:600">Never</span>')+'</td>'+
       '<td style="text-align:center;font-weight:600">'+(item.revealed?item.expected+' '+plural(item.expected,item.unit):'<span style="filter:blur(5px);user-select:none">???</span>')+'</td>'+
-      '<td><input type="number" min="0" value="'+(item.actual===''?'':item.actual)+'" placeholder="Count" oninput="updateCheckItem('+idx+',\'actual\',this.value)" style="text-align:center;font-size:14px;font-weight:600;border:2px solid '+(diff===null?'var(--border)':diff<0?'#fca5a5':diff===0?'#86efac':'#fcd34d')+';border-radius:var(--radius);padding:6px"/></td>'+
+      '<td><input type="number" min="0" value="'+(item.actual===''?'':item.actual)+'" placeholder="Count" onchange="updateCheckItem('+idx+',\'actual\',this.value)" style="text-align:center;font-size:14px;font-weight:600;border:2px solid '+(diff===null?'var(--border)':diff<0?'#fca5a5':diff===0?'#86efac':'#fcd34d')+';border-radius:var(--radius);padding:6px"/></td>'+
       '<td style="text-align:center;font-weight:700;color:'+diffColor+'">'+diffStr+'</td>'+
-      '<td><input type="text" value="'+(item.note||'')+'" placeholder="'+(diff!==null&&diff<0?'Required -- explain shortage':'Optional')+'" oninput="updateCheckItem('+idx+',\'note\',this.value)" style="font-size:12px;border-color:'+(diff!==null&&diff<0&&!item.note?'#fca5a5':'var(--border)')+'" /></td>'+
+      '<td><input type="text" value="'+(item.note||'')+'" placeholder="'+(diff!==null&&diff<0?'Required -- explain shortage':'Optional')+'" onchange="updateCheckItem('+idx+',\'note\',this.value)" style="font-size:12px;border-color:'+(diff!==null&&diff<0&&!item.note?'#fca5a5':'var(--border)')+'" /></td>'+
     '</tr>';
   });
   html+='</tbody></table></div>';document.getElementById('invcheck-items').innerHTML=html;
@@ -2855,7 +2819,7 @@ async function checkFDA(manual){
       });
     }catch(err){errors++;console.warn('FDA batch '+b+' failed:',err);}
   }
-    await checkFDALots(!!manual);if(newCount>0)save();updateBadge();
+    await checkFDALots(!!manual);if(newCount>0)save();try{localStorage.setItem('fda_cache',JSON.stringify(DB.fdaRecalls||[]));}catch(e){}updateBadge();
   var msg='FDA: checked '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+' -- '+newCount+' new ('+terms.length+' terms, 1yr lookback)';
   if(errors>0)msg+=' -- '+errors+' batch'+(errors===1?'':'es')+' failed';
   var lc=window._fdaLot||{},lh=(lc.hits||[]).length;msg+=' | Lot check: '+lh+' match'+(lh===1?'':'es')+' across '+(lc.lotsChecked||0)+' lots'+(lc.ts?' ('+new Date(lc.ts).toLocaleString([],{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})+')':'')+(lc.errors?' -- some lot batches failed, will retry':'');
@@ -3095,7 +3059,8 @@ async function submitMySection(){
   var updated=currentCheckItems.map(function(i){return{med:i.med,lot:i.lot,rep:i.rep,unit:i.unit,expected:i.expected,actual:i.actual===''?null:parseInt(i.actual),note:i.note||'',exp:i.exp||null,added:!!i.added};});
   try{var fr=await _db.from('inventory_checks').select('*').eq('id',checkId).single();if(fr.data)Object.assign(check,fr.data);}catch(e){}   
   if(role==='a'){check.items_a=updated;check.submitted_a=true;}else{check.items_b=updated;check.submitted_b=true;}
-  if(check.submitted_a&&check.submitted_b)check.status='cosigning';
+  check.total_items=(check.items_a||[]).length+(check.items_b||[]).length;   
+    if(check.submitted_a&&check.submitted_b)check.status='cosigning';
   sbSaveInvCheck(check);save();
   var ar={ts:new Date().toISOString(),action:'inv-check',id:checkId,field:'section submitted',before:'--',after:staff+' submitted '+updated.length+' lots',by:staff};
   DB.auditLog.unshift(ar);sbSaveAudit(ar);
@@ -3142,7 +3107,7 @@ async function submitCosign(){
   if(check.cosign_a&&check.cosign_b){
     check.status='complete';
     var all=(check.items_a||[]).concat(check.items_b||[]);
-    check.items=all;check.conducted_by=check.counter_a;
+    check.items=all;check.total_items=all.length;check.conducted_by=check.counter_a;
     check.discrepancies=all.filter(function(i){return i.actual!==null&&i.actual!==i.expected;}).length;
     var ar={ts:new Date().toISOString(),action:'inv-check',id:checkId,field:'check complete',before:'--',after:check.total_items+' lots, '+check.discrepancies+' discrepancies',by:me};
     DB.auditLog.unshift(ar);sbSaveAudit(ar);
@@ -3205,7 +3170,6 @@ function renderConfigEditorUI(){
   document.getElementById('cfg-sample-count').value=CONFIG.sampleLimitCount;
   document.getElementById('cfg-sample-days').value=CONFIG.sampleLimitDays;
   document.getElementById('cfg-expiry-warn').value=CONFIG.expiryWarnDays;
-  document.getElementById('cfg-low-stock').value=CONFIG.defaultLowStockThreshold;
   document.getElementById('cfg-session-timeout').value=CONFIG.sessionTimeoutMinutes;
   document.getElementById('cfg-inv-baseline').value=CONFIG.inventoryBaselineDate||'';
 }
@@ -3311,7 +3275,6 @@ async function saveClinicConfig(){
   CONFIG.sampleLimitCount=parseInt(document.getElementById('cfg-sample-count').value)||3;
   CONFIG.sampleLimitDays=parseInt(document.getElementById('cfg-sample-days').value)||180;
   CONFIG.expiryWarnDays=parseInt(document.getElementById('cfg-expiry-warn').value)||30;
-  CONFIG.defaultLowStockThreshold=parseInt(document.getElementById('cfg-low-stock').value)||5;
   CONFIG.sessionTimeoutMinutes=parseInt(document.getElementById('cfg-session-timeout').value)||15;
   CONFIG.inventoryBaselineDate=document.getElementById('cfg-inv-baseline').value||null;
   var cfg={providers:CONFIG.providers,storageLocations:CONFIG.storageLocations,
@@ -3488,11 +3451,6 @@ async function submitPin(){
   }
 }
 function closePinModal(){document.getElementById('pin-modal').style.display='none';pinCallback=null;}
-function toggleConfig(){if(sessionStaff()!=='OB'){toast('Config access is restricted.');return;}requirePin(function(){_showConfig();});}
-function _showConfig(){
-  var p=document.getElementById('config-panel'),show=p.style.display==='none';p.style.display=show?'block':'none';
-  if(show){document.getElementById('cfg-physicians').innerHTML=CONFIG.providers.join('<br>');document.getElementById('cfg-staff').textContent=CONFIG.staff.join(', ');document.getElementById('cfg-limit').textContent='Max '+CONFIG.sampleLimitCount+' per '+CONFIG.sampleLimitDays+' days';document.getElementById('cfg-expiry').textContent='Warn at <= '+CONFIG.expiryWarnDays+' days';document.getElementById('cfg-meds').textContent=CONFIG.medications.length+' medications';}
-}
 
 // ── APP UPDATE CHECK ────────────────────────────────────────── 
 var _updateAvailable=false; 
